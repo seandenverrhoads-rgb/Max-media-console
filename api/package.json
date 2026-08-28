@@ -1,0 +1,6 @@
+{
+  "name": "max-media-campaign-console",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Max Media Campaign Console -- static sales tool + a small serverless proxy (api/generate.js) for the AI-written creative direction section."
+}
