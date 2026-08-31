@@ -290,6 +290,7 @@
             <option value="early_week">Early week (Mon/Tue heavier)</option>
             <option value="later_week">Later week (Thu/Fri heavier)</option>
             <option value="custom">Custom — choose specific days</option>
+            <option value="condensed">Condense to specific daypart(s) + day(s) — dominate frequency there</option>
           </select>
         </div>
       </div>
@@ -304,6 +305,27 @@
           <label class="checkbox-row"><input type="checkbox" class="bCustomDayCheck" value="Sat" checked> Saturday</label>
           <label class="checkbox-row"><input type="checkbox" class="bCustomDayCheck" value="Sun" checked> Sunday</label>
         </div>
+      </div>
+      <div class="field" id="bCondensedWrap" style="display:none;">
+        <label>Daypart(s) to dominate <span class="hint">Pick one or more — budget splits evenly across whichever you pick</span></label>
+        <div class="goal-grid" id="bCondensedDaypartChecks">
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDaypartCheck" value="morning"> Morning commute (6-10a)</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDaypartCheck" value="midday"> Midday (10a-3p)</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDaypartCheck" value="afternoon"> Afternoon/evening drive (3-7p)</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDaypartCheck" value="evening"> Evening/night (7p-mid)</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDaypartCheck" value="weekend"> Weekend</label>
+        </div>
+        <label style="margin-top:10px; display:block;">Day(s) to run on <span class="hint">Pick one or more — spots only land on these days</span></label>
+        <div class="goal-grid" id="bCondensedDayChecks">
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDayCheck" value="Mon"> Monday</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDayCheck" value="Tue"> Tuesday</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDayCheck" value="Wed"> Wednesday</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDayCheck" value="Thu" checked> Thursday</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDayCheck" value="Fri" checked> Friday</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDayCheck" value="Sat"> Saturday</label>
+          <label class="checkbox-row"><input type="checkbox" class="bCondensedDayCheck" value="Sun"> Sunday</label>
+        </div>
+        <div class="data-note" style="margin-top:8px;">Every dollar goes only into the daypart(s) and day(s) checked above — no automatic fallback to other times or days, and no weekend/leftover sweep. This is meant for tight budgets where dominating one narrow window beats spreading thin across the whole week.</div>
       </div>
       <div class="field">
         <label class="checkbox-row" style="margin-bottom:0;"><input type="checkbox" id="bAddQuu"> Add Quu (in-dash display) — 10% of commercial cost</label>
@@ -2646,6 +2668,25 @@ function effectiveDaysForPref(days, dayPref){
   return days;
 }
 
+/* The 5 non-weekend categories (morning/midday/afternoon/rotator/evening)
+   are always funded from the "nonWeekendDollars" pool, with a SEPARATE
+   "weekend" category (Sat/Sun schedule) funded from its own dedicated
+   pool. That split only holds if the weekday categories' own spots never
+   land on Sat/Sun themselves - but several stations' evening slot runs
+   M-Sun (a real 7-night syndicated/talk show), so its native `days` array
+   includes Sat/Sun. Left unfiltered, evening's share of the weekday pool
+   would ALSO place spots on Sat/Sun, double-funding weekend inventory
+   beyond what the weekend $ share intends - which showed up concretely as
+   a station's "afternoon + later week" request coming back almost
+   entirely as weekend spots. Every weekday-pool category is restricted to
+   Mon-Fri here, independent of dayPref (dayPref-driven weekday exclusion
+   is effectiveDaysForPref's separate job, for "weekdays only" specifically
+   zeroing out the dedicated weekend pool too); only the "weekend" category
+   itself keeps its native Sat/Sun days. */
+function weekdayPoolDays(days){
+  return days.filter(d => !WEEKEND_DAYS_SET.has(d));
+}
+
 function distributeAcrossDays(totalSpots, days, weights){
   if (!weights){
     const base = Math.floor(totalSpots / days.length);
@@ -2720,7 +2761,22 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
       weekdayCats.forEach(c => { categoryDollars[c] = (c === cheapestCat) ? nonWeekendDollars : 0; });
     }
     categoryDollars.weekend = weekendDollars;
-    cats.forEach(c => { daysByCategory[c] = effectiveDaysForPref(sched[c].days, dayPref); skewByCategory[c] = null; });
+    /* Which dayparts get money changed above to protect frequency, but the
+       rep's own day-of-week emphasis (early_week/later_week) is a separate,
+       still-valid preference - it should keep applying to however the
+       resulting spots land across Mon-Fri, the same way it does in the
+       normal (non-concentrated) branch below. This used to be hardcoded to
+       null here, which silently dropped early_week/later_week the moment a
+       budget needed fringe/horizontal concentration - falling back to an
+       even Mon-Fri split whose remainder spots land on Monday/Tuesday
+       first (array order), which looked like the OPPOSITE of "later week"
+       when a rep asked for Thu/Fri emphasis. */
+    const concentrationSkew = WEEKDAY_SKEW[dayPref] || null;
+    cats.forEach(c => {
+      const baseDays = c === "weekend" ? sched[c].days : weekdayPoolDays(sched[c].days);
+      daysByCategory[c] = effectiveDaysForPref(baseDays, dayPref);
+      skewByCategory[c] = (c === "weekend") ? null : concentrationSkew;
+    });
   } else if (concentrationMode === "vertical"){
     /* One specific day (across that day's dayparts) — trades reach for
        frequency by concentrating the whole budget onto a single day, per
@@ -2754,7 +2810,8 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
     categoryDollars.weekend = weekendDollars;
     const skew = WEEKDAY_SKEW[dayPref] || null;
     cats.forEach(c => {
-      daysByCategory[c] = effectiveDaysForPref(sched[c].days, dayPref);
+      const baseDays = c === "weekend" ? sched[c].days : weekdayPoolDays(sched[c].days);
+      daysByCategory[c] = effectiveDaysForPref(baseDays, dayPref);
       skewByCategory[c] = (c === "weekend") ? null : skew;
     });
   }
@@ -2798,9 +2855,18 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
   const rosDays = effectiveDaysForPref(rosDaysBase, dayPref);
   const extraRosSpots = Math.floor(leftover / rosRate30);
   if (extraRosSpots > 0 && rosDays.length > 0){
+    // Same early_week/later_week emphasis as every other category applies
+    // here too - these leftover-budget spots still land on real days, and
+    // a rep who asked for "later week" shouldn't see them default back to
+    // an even Mon-first split. (Unlike the weekday-pool categories, ROS
+    // legitimately spans Mon-Sun by design - see comment above - so this
+    // does NOT restrict rosDays to weekdays-only, only applies the skew;
+    // WEEKDAY_SKEW has no Sat/Sun entries, so those days just fall back to
+    // an even weight of 1 alongside the weighted weekdays.)
+    const rosSkew = WEEKDAY_SKEW[dayPref] || null;
     const existingRos = rows.find(r => r.key === "ros");
     if (existingRos){ existingRos.spots += extraRosSpots; }
-    else { rows.push({key:"ros", label:rosDp.label, talent:rosDp.talent, r15:rosDp.r15 * rateMult, r30:rosRate30, r60:rosDp.r60 * rateMult, days:rosDays, skew:null, spots:extraRosSpots}); }
+    else { rows.push({key:"ros", label:rosDp.label, talent:rosDp.talent, r15:rosDp.r15 * rateMult, r30:rosRate30, r60:rosDp.r60 * rateMult, days:rosDays, skew:rosSkew, spots:extraRosSpots}); }
   }
 
   let totalSpots = rows.reduce((s,r) => s + r.spots, 0);
@@ -2870,12 +2936,22 @@ function buildWidenedGrid(station, weeklyDollars, timePref, dayPref, maxSpots, q
   const widenedRate = baseRate * (1 - chosenTier.discountPct);
   const rows = [];
   const spots = Math.min(maxSpots || SCHEDULE_HEALTHY_MAX_SPOTS, Math.floor(nonWeekendDollars / widenedRate));
-  const catDays = effectiveDaysForPref(dp.days, dayPref);
+  // dp.days for an "evening" slot can span M-Sun on stations that run a real
+  // 7-night show there - but these spots are funded from nonWeekendDollars,
+  // with Sat/Sun already covered separately below by weekendDollars/wdp. So
+  // (as in buildScheduleGrid) restrict this category to Mon-Fri regardless
+  // of dayPref, or a 7-day evening slot double-funds weekend inventory.
+  const catDays = effectiveDaysForPref(weekdayPoolDays(dp.days), dayPref);
+  // Widening the daypart (which hour-window discount tier gets used) is a
+  // separate question from which weekdays get emphasis - a rep's
+  // early_week/later_week choice should still shape how these spots land
+  // across Mon-Fri, same as everywhere else. Previously hardcoded to null.
+  const catSkew = WEEKDAY_SKEW[dayPref] || null;
   if (spots > 0 && catDays.length > 0){
     rows.push({
       key: cat, label: dp.label + ' (' + chosenTier.label + ')', talent: dp.talent,
-      r15: dp.r15 * rateMult, r30: widenedRate, r60: dp.r60 * rateMult, days: catDays, skew: null,
-      spots, dollars: spots * widenedRate, dayCounts: distributeAcrossDays(spots, catDays, null)
+      r15: dp.r15 * rateMult, r30: widenedRate, r60: dp.r60 * rateMult, days: catDays, skew: catSkew,
+      spots, dollars: spots * widenedRate, dayCounts: distributeAcrossDays(spots, catDays, catSkew)
     });
   }
   const wdp = sched.weekend;
@@ -2891,6 +2967,88 @@ function buildWidenedGrid(station, weeklyDollars, timePref, dayPref, maxSpots, q
   const totalSpots = rows.reduce((s,r) => s + r.spots, 0);
   const totalDollars = rows.reduce((s,r) => s + r.dollars, 0);
   return {rows, totalSpots, totalDollars, unspentFromCap: 0, capSpots: maxSpots || SCHEDULE_HEALTHY_MAX_SPOTS, widenedTier: chosenTier};
+}
+
+/* The dayparts a rep can explicitly pick for a manually-condensed
+   schedule (see buildCondensedGrid below) — the same rep-facing daypart
+   concepts used everywhere else in this file. "Rotator" is deliberately
+   left out: it's an internal blended-inventory category the automatic
+   concentration modes use, not a specific time of day a client would
+   actually ask to dominate. */
+const CONDENSABLE_DAYPARTS = ["morning","midday","afternoon","evening","weekend"];
+
+/* Explicit, rep-chosen version of concentration: instead of the tool
+   automatically deciding how to protect frequency on a thin budget (see
+   pickConcentrationMode above), the rep directly picks one or more
+   specific dayparts AND one or more specific days, and EVERY dollar goes
+   only into that exact daypart x day combination — nothing else. Per
+   Sean: a client on a limited budget can still "dominate" a narrow
+   window (a specific time of day, specific day(s), or both) even at a
+   spot count below the usual whole-week recommendation, and the point of
+   this mode is that the output shows ONLY spots in the selected window,
+   with no automatic fallback into other dayparts, no weekend/ROS
+   leftover sweep, nothing the rep didn't explicitly choose.
+
+   Unlike buildWidenedGrid, this uses each daypart's real, undiscounted
+   rate (no bulk-rate widening ladder) — simpler and more conservative to
+   quote a client, per Sean's own call on that tradeoff. The weekly
+   budget is split evenly across however many dayparts are selected (no
+   ranking/preference signal exists to weight it any other way), and each
+   daypart's dollars only buy spots on the selected day(s) that daypart
+   actually runs on at this station — e.g. picking "Weekend" alongside
+   Mon-Fri days is fine, the Weekend money still only lands on Sat/Sun,
+   it just doesn't buy anything on the weekday-only categories' behalf.
+
+   Returns the same {rows, totalSpots, totalDollars, ...} shape as every
+   other grid builder so it drops into renderScheduleGrid unchanged.
+   `notes` carries any honest heads-up (e.g. a selected daypart that
+   doesn't run on any of the selected days at this station) for the
+   caller to surface next to the schedule, the same way concentrationTrigger
+   already does for the automatic modes. */
+function buildCondensedGrid(station, weeklyDollars, dayparts, days, quuMultiplier){
+  const sched = station.schedule;
+  const rateMult = quuMultiplier || 1;
+  const selectedCats = CONDENSABLE_DAYPARTS.filter(c => Array.isArray(dayparts) && dayparts.includes(c));
+  const selectedDays = Array.isArray(days) ? days : [];
+  if (!sched || weeklyDollars <= 0 || !selectedCats.length || !selectedDays.length){
+    return {rows: [], totalSpots: 0, totalDollars: 0, unspentFromCap: 0, capSpots: 0, notes: []};
+  }
+
+  const dollarsPerCat = weeklyDollars / selectedCats.length;
+  const rows = [];
+  const notes = [];
+  let unspent = 0;
+
+  selectedCats.forEach(cat => {
+    const dp = sched[cat];
+    if (!dp){ return; }
+    const nativeDays = dp.days || [];
+    const useDays = nativeDays.filter(d => selectedDays.includes(d));
+    if (!useDays.length){
+      notes.push(`${dp.label} doesn't run on any of the day(s) you picked at this station, so no spots were placed there.`);
+      unspent += dollarsPerCat;
+      return;
+    }
+    const rate30 = dp.r30 * rateMult;
+    const spots = Math.floor(dollarsPerCat / rate30);
+    const actualDollars = spots * rate30;
+    unspent += (dollarsPerCat - actualDollars);
+    if (spots > 0){
+      rows.push({
+        key: cat, label: dp.label, talent: dp.talent, r15: dp.r15 * rateMult, r30: rate30, r60: dp.r60 * rateMult,
+        days: useDays, skew: null, spots, dollars: actualDollars, dayCounts: distributeAcrossDays(spots, useDays, null)
+      });
+    } else {
+      notes.push(`This budget can't clear even 1 spot/week on ${dp.label} at this station on the day(s) you picked.`);
+    }
+  });
+
+  if (unspent > 1){
+    notes.push(`$${Math.round(unspent).toLocaleString()}/week of this budget didn't clear a whole spot in the selected window and is left unspent rather than swept into any other daypart or day.`);
+  }
+  const totalSpots = rows.reduce((s,r) => s + r.spots, 0);
+  const totalDollars = rows.reduce((s,r) => s + r.dollars, 0);
+  return {rows, totalSpots, totalDollars, unspentFromCap: 0, capSpots: totalSpots, notes};
 }
 
 /* Which single day a "vertical" concentration (many dayparts, one day
@@ -2914,20 +3072,34 @@ function pickVerticalDay(station){
    client in the same part of the day they asked for, and preserves the
    most reach), then fringe (still touches every day), then horizontal
    (one repeating hour), then vertical (one day, many hours - reuses
-   buildScheduleGrid's existing custom-day path). Returns whichever
-   candidate first clears the 20-spot floor; if NONE do (not even the
-   plain, evenly-spread schedule), returns whichever got closest, flagged
-   so the caller can honestly tell the rep this budget doesn't support an
-   effective schedule here rather than quietly presenting a too-thin plan. */
+   buildScheduleGrid's existing custom-day path).
+
+   Widening is a special case in that ranking: staying in the daypart the
+   client actually asked for is itself the point of "condensing" a
+   schedule, so a widened build is accepted as soon as it buys ANYTHING
+   there — it does NOT have to clear the 20-spot floor first. A condensed
+   midday (or any other daypart) schedule at, say, 14 spots/week is a
+   stronger, more honest buy than 20+ spots the tool quietly parked in
+   fringe/evening hours the client never asked for; renderStationPlan
+   still flags a below-20 result to the rep so it's never presented as a
+   full recommended flight, just an honestly-labeled thin one. Only when
+   widening genuinely can't produce anything (the station doesn't run
+   that daypart at all, or the budget can't clear even a single widened
+   spot there) do we move on to modes that give up the client's daypart
+   choice — fringe, horizontal, then vertical — which DO still need to
+   clear the 20-spot floor to be preferred, since the whole reason to use
+   them instead of widened is to buy real frequency the client's own
+   daypart couldn't afford. */
 function pickConcentrationMode(station, weeklyDollars, timePref, dayPref, quuMultiplier){
   const normal = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, null);
   const widened = buildWidenedGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, quuMultiplier);
+  if (widened && widened.totalSpots > 0) return {mode:"widened", grid:widened};
+
   const fringe = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, "fringe");
   const horizontal = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, "horizontal");
   const vertical = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, [pickVerticalDay(station)], quuMultiplier, "vertical");
 
   const candidates = [
-    {mode:"widened", grid:widened},
     {mode:"fringe", grid:fringe},
     {mode:"horizontal", grid:horizontal},
     {mode:"vertical", grid:vertical}
@@ -2936,12 +3108,14 @@ function pickConcentrationMode(station, weeklyDollars, timePref, dayPref, quuMul
   for (const c of candidates){
     if (c.grid.totalSpots >= SCHEDULE_MIN_VIABLE_SPOTS) return c;
   }
-  // Nothing clears the floor — this is the "flag the budget as
-  // insufficient" case: return whichever attempt got closest so the
-  // rep sees the best honest effort, not a manufactured full schedule.
-  const all = [{mode:null, grid:normal}].concat(candidates).filter(c => c.grid);
-  all.sort((a,b) => b.grid.totalSpots - a.grid.totalSpots);
-  return all[0] || {mode:null, grid:normal};
+  // Nothing clears the 20-spot floor, including widening the client's own
+  // daypart (already ruled out above). Return whichever of the remaining,
+  // daypart-abandoning attempts got closest, so the caller can honestly
+  // tell the rep this budget doesn't support an effective schedule here
+  // rather than quietly presenting a too-thin plan.
+  const usable = candidates.find(c => c.grid.totalSpots > 0);
+  if (usable) return usable;
+  return {mode:null, grid:normal};
 }
 
 /* When the best-fit station still can't clear the 20-spot floor even
@@ -3008,6 +3182,15 @@ function buildTieredScheduleGrid(station, weeklyDollars, spotsPerWeek, inputs, q
   const testTier = spotsPerWeek >= SCHEDULE_MIN_VIABLE_SPOTS && spotsPerWeek <= SCHEDULE_TEST_CEILING;
   const maintenanceTier = spotsPerWeek > SCHEDULE_TEST_CEILING && spotsPerWeek <= SCHEDULE_CONCENTRATE_CEILING;
 
+  if (inputs.dayPref === "condensed"){
+    // Explicit rep choice, not an automatic budget-tier trigger — always
+    // honored regardless of spotsPerWeek (that's the whole point: a
+    // deliberately condensed, below-the-usual-floor schedule).
+    const grid = buildCondensedGrid(station, weeklyDollars, inputs.condensedDayparts, inputs.condensedDays, quuMultiplier);
+    if (grid) grid.concentrationModeUsed = "condensed";
+    if (grid && grid.notes && grid.notes.length) grid.concentrationTrigger = grid.notes.join(" ").replace(/\.\s*$/, "");
+    return grid;
+  }
   if (inputs.dayPref === "custom"){
     return buildScheduleGrid(station, weeklyDollars, inputs.timePref, inputs.dayPref, capSpots, inputs.customDays, quuMultiplier);
   }
@@ -3052,7 +3235,11 @@ function computeSingleStationSchedule(station, inputs, weeklyBudget, quuMultipli
   const weeklyDollars = spotsPerWeek * station.rosR30;
   const grid = buildTieredScheduleGrid(station, weeklyDollars, spotsPerWeek, inputs, quuMultiplier, flightWeeks);
   const realizedSpots = grid ? grid.totalSpots : spotsPerWeek;
-  return {station, spotsPerWeek: realizedSpots, weeklyDollars, grid, insufficient: realizedSpots < SCHEDULE_MIN_VIABLE_SPOTS};
+  // See renderStationPlan's identical isCondensed exemption: a manually
+  // condensed schedule is deliberately below the usual floor, not a
+  // shortfall worth flagging as "insufficient".
+  const isCondensed = grid && grid.concentrationModeUsed === "condensed";
+  return {station, spotsPerWeek: realizedSpots, weeklyDollars, grid, insufficient: !isCondensed && realizedSpots < SCHEDULE_MIN_VIABLE_SPOTS};
 }
 
 /* Renders the "compare other stations in this market" section: every
@@ -3710,7 +3897,8 @@ const CONCENTRATION_MODE_EXPLANATIONS = {
   widened: "the client's requested daypart was kept, but its time window was widened to a cheaper effective rate to buy enough frequency",
   fringe: "spend was concentrated into evening + rotator inventory (still touches every day of the week) to protect frequency at this budget",
   horizontal: "spend was concentrated into a single repeating daypart, run every day it's offered, to protect frequency at this budget",
-  vertical: "spend was concentrated onto one specific day (across that day's dayparts) to protect frequency at this budget - this trades reach for frequency"
+  vertical: "spend was concentrated onto one specific day (across that day's dayparts) to protect frequency at this budget - this trades reach for frequency",
+  condensed: "spend was placed ONLY in the specific daypart(s) and day(s) you selected, to dominate frequency in that exact window rather than spread across the whole week - a deliberate choice, not a fallback"
 };
 
 function renderStationPlan(stationPlan, competitive, grids, market, flightStart, flightEnd, alternativeStation, weeksPerMonth){
@@ -3736,7 +3924,15 @@ function renderStationPlan(stationPlan, competitive, grids, market, flightStart,
     // attempt - p.belowMinimum from pickStationsAndSchedule is only a
     // provisional, ROS-blended-rate estimate.
     const realizedSpots = grid ? grid.totalSpots : p.spotsPerWeek;
-    const stillBelowMinimum = realizedSpots < SCHEDULE_MIN_VIABLE_SPOTS;
+    // A manually-condensed schedule (grid.concentrationModeUsed ===
+    // "condensed") is DELIBERATELY below the usual floor — that's the
+    // point of the feature, not a shortfall the tool failed to fix. The
+    // below-minimum flag and the "switch stations" error-box below both
+    // exist to catch an accidental thin schedule, so both are skipped
+    // here; the condensed-mode explanation note (added further down)
+    // already tells the rep exactly what happened instead.
+    const isCondensed = grid && grid.concentrationModeUsed === "condensed";
+    const stillBelowMinimum = !isCondensed && realizedSpots < SCHEDULE_MIN_VIABLE_SPOTS;
     const flag = stillBelowMinimum ? ` <span style="color:#A32D2D; font-weight:600;">(below ${SCHEDULE_MIN_VIABLE_SPOTS}/wk minimum)</span>` : '';
     if (stillBelowMinimum) anyInsufficient = true;
     if (grid && grid.concentrationModeUsed){
@@ -3968,6 +4164,7 @@ function toggleStationMode(){
 function toggleCustomDays(){
   const mode = document.getElementById('bDayPref').value;
   document.getElementById('bCustomDaysWrap').style.display = mode === 'custom' ? 'block' : 'none';
+  document.getElementById('bCondensedWrap').style.display = mode === 'condensed' ? 'block' : 'none';
 }
 
 function populateManualStationChecks(){
@@ -4044,6 +4241,8 @@ function getBroadcastInputs(){
     timePref: document.getElementById('bTimePref').value,
     dayPref: document.getElementById('bDayPref').value,
     customDays: Array.from(document.querySelectorAll('.bCustomDayCheck:checked')).map(el => el.value),
+    condensedDayparts: Array.from(document.querySelectorAll('.bCondensedDaypartCheck:checked')).map(el => el.value),
+    condensedDays: Array.from(document.querySelectorAll('.bCondensedDayCheck:checked')).map(el => el.value),
     currentMarketing: document.getElementById('bCurrentMarketing').value.trim() || "not specified",
     currentMarketingChannels: Array.from(document.querySelectorAll('.bCurrentMarketingCheck:checked')).map(el => el.value),
     goals: document.getElementById('bGoals').value.trim() || "not specified",
@@ -4104,6 +4303,10 @@ async function generateBroadcast(){
 
   if (inputs.stationMode === "manual" && !inputs.manualStations.length){
     out.innerHTML = '<div class="error-box">Manual mode is selected but no stations are checked. Pick at least one station, or switch back to Auto-recommend.</div>';
+    return;
+  }
+  if (inputs.dayPref === "condensed" && (!inputs.condensedDayparts.length || !inputs.condensedDays.length)){
+    out.innerHTML = '<div class="error-box">"Condense to specific daypart(s) + day(s)" is selected, but at least one daypart and at least one day both need to be checked. Pick at least one of each, or switch to a different day-of-week emphasis.</div>';
     return;
   }
 
