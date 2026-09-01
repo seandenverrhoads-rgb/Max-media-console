@@ -390,8 +390,8 @@
         <div class="field"><label>Competitor aggressiveness</label>
           <select id="dCompetitive"><option value="Low">Low</option><option value="Medium" selected>Medium</option><option value="High">High</option></select>
         </div>
-        <div class="field"><label>Monthly digital budget ($)</label>
-          <input type="text" inputmode="numeric" id="dBudget" placeholder="e.g. 2,000" oninput="formatNumberInput(this)">
+        <div class="field"><label>Monthly digital budget ($) <span class="hint">Auto-totals the per-objective budgets below</span></label>
+          <input type="text" inputmode="numeric" id="dBudget" placeholder="Set per objective below" readonly style="background:#F3F1EA; cursor:not-allowed;">
           <button type="button" class="use-btn" onclick="useSuggested('digital')">Use suggested</button>
         </div>
       </div>
@@ -1069,42 +1069,134 @@ const STATIONS_BY_MARKET = {
 };
 
 /* Digital rate card — retail CPM by tactic/product, from Max_Media_Digital_Rate_Card.xlsx */
+/* `level` mirrors Sean's rate-card spreadsheet's "Budget Level" column (1
+   lowest/cheapest tier, 5 highest/priciest) - it's what lets the auto-
+   recommendation engine swap in a richer tier of the SAME tactic family as
+   budget allows (see TIERED_PRODUCT_FAMILIES / digitalBudgetLevelCeiling
+   below), rather than just always listing every product regardless of
+   budget. Only Display, CTV/Streaming TV, and Streaming Audio are wired
+   into that swap-in-place system today (the three families Sean named
+   directly); every product still carries its level for data completeness
+   and future use, even ones not yet part of a tiered family.
+
+   minMonthlyImpressions (or minMonthlyViews, for the one CPV product) is
+   the real platform-enforced monthly minimum from Sean's "Rate card
+   display and video" spreadsheet, column E - a plan literally cannot run
+   below this, it's not a business preference. See the floor-enforcement
+   pass in computeDigitalPlanMulti (search "MINIMUM_ENFORCEMENT"): after
+   dollars are allocated, any CPM tactic whose allocation would deliver
+   FEWER than this many impressions/views this month gets dropped from the
+   auto-recommendation (its dollars redistribute to what's left) rather
+   than being shown at a volume the platform won't actually deliver.
+   Products with no minimum listed here (DOOH, Amazon Pro Streaming TV,
+   Amazon Twitch-only, In-Market Email) weren't on that spreadsheet - left
+   ungated until Sean confirms a number for them. */
 const CPM_PRODUCTS = [
-  {key:"display_basic", tactic:"Display", product:"Basic Blend", notes:"Content + Geo", retailCPM:7},
-  {key:"display_competitive", tactic:"Display", product:"Competitive", notes:"Content + Behavior + Demo + Retargeting + Geo", retailCPM:8},
-  {key:"display_dominant", tactic:"Display", product:"Dominant", notes:"Content + Behavior + Demo + Search Retargeting + Cross Device + Retargeting + Geo", retailCPM:10},
-  {key:"display_deviceid", tactic:"Display", product:"Device ID", notes:"Geo Fence + Lookback — reach people who visited a specific location, like a competitor's", retailCPM:15},
-  {key:"display_deviceid_am", tactic:"Display", product:"Device ID Address Match", notes:"Geo Fence + Lookback + Address Match", retailCPM:17},
-  {key:"video_deviceid", tactic:"Video", product:"Device ID", notes:"Geo Fence + Lookback + Address Match", retailCPM:26},
-  {key:"display_microprox", tactic:"Display", product:"Microproximity", notes:"Geo Fence targeting around a specific address", retailCPM:15},
-  {key:"display_microprox_lb", tactic:"Display", product:"Microproximity + Lookback", notes:"Geo Fence + retargeting people after they leave the fence", retailCPM:16},
-  {key:"display_lookback", tactic:"Display", product:"Lookback", notes:"Retargets people no longer in a geo frame", retailCPM:16},
-  {key:"native", tactic:"Native", product:"Content + Geo", notes:"Creative adapts to match the target site's look and feel", retailCPM:14},
-  {key:"site_retargeting", tactic:"Site Retargeting", product:"Retargeting + Geo", notes:"Retargets the client's own site visitors", retailCPM:14},
-  {key:"search_retargeting", tactic:"Search Retargeting", product:"Keyword + Geo", notes:"Contextual keyword targeting", retailCPM:14},
-  {key:"streaming_audio", tactic:"Streaming Audio", product:"RON + Geo", notes:"Spotify, Triton, Adswizz inventory", retailCPM:30},
-  {key:"streaming_audio_at", tactic:"Streaming Audio", product:"Audience Targeting", notes:"Behavioral + Demographic", retailCPM:35},
-  {key:"video_preroll_ron", tactic:"Video Pre-roll", product:"Run of Network", notes:"Geo targeting, broad reach", retailCPM:17},
-  {key:"video_preroll_behavioral", tactic:"Video Pre-roll", product:"Behavioral", notes:"Behavioral/Demo + Geo", retailCPM:21.5},
-  {key:"youtube_bumper", tactic:"Video", product:"YouTube Bumper Ads", notes:"Content + Geo targeting", retailCPM:20},
-  {key:"ctv_premium", tactic:"Video", product:"Streaming TV Premium", notes:"Run of network + Geo — connected TV", retailCPM:40},
-  {key:"ctv_plus", tactic:"Video", product:"Streaming TV Plus", notes:"Higher share of large-screen inventory", retailCPM:30},
-  {key:"ctv_addressable", tactic:"Video", product:"Addressable Streaming TV", notes:"Geo Fence + Lookback + Address Match — connected TV conquesting", retailCPM:40}
+  {key:"display_basic", tactic:"Display", product:"Basic Blend", notes:"Content + Geo", retailCPM:7, level:1, minMonthlyImpressions:40000},
+  {key:"display_competitive", tactic:"Display", product:"Competitive", notes:"Content + Behavior + Demo + Retargeting + Geo", retailCPM:8, level:1.5, minMonthlyImpressions:40000},
+  {key:"display_dominant", tactic:"Display", product:"Dominant", notes:"Content + Behavior + Demo + Search Retargeting + Cross Device + Retargeting + Geo", retailCPM:10, level:2, minMonthlyImpressions:40000},
+  {key:"display_deviceid", tactic:"Display", product:"Device ID", notes:"Geo Fence + Lookback — reach people who visited a specific location, like a competitor's", retailCPM:15, level:3.5, minMonthlyImpressions:40000},
+  {key:"display_deviceid_am", tactic:"Display", product:"Device ID Address Match", notes:"Geo Fence + Lookback + Address Match", retailCPM:17, level:4, minMonthlyImpressions:40000},
+  {key:"video_deviceid", tactic:"Video", product:"Device ID", notes:"Geo Fence + Lookback + Address Match", retailCPM:26, level:3.5, minMonthlyImpressions:40000},
+  {key:"display_microprox", tactic:"Display", product:"Microproximity", notes:"Geo Fence targeting around a specific address", retailCPM:15, level:3.5, minMonthlyImpressions:40000},
+  {key:"display_microprox_lb", tactic:"Display", product:"Microproximity + Lookback", notes:"Geo Fence + retargeting people after they leave the fence", retailCPM:16, level:3.5, minMonthlyImpressions:40000},
+  {key:"display_lookback", tactic:"Display", product:"Lookback", notes:"Retargets people no longer in a geo frame", retailCPM:16, level:3.5, minMonthlyImpressions:40000},
+  {key:"native", tactic:"Native", product:"Content + Geo", notes:"Creative adapts to match the target site's look and feel", retailCPM:14, level:2, minMonthlyImpressions:40000},
+  {key:"site_retargeting", tactic:"Site Retargeting", product:"Retargeting + Geo", notes:"Retargets the client's own site visitors", retailCPM:14, level:2, minMonthlyImpressions:40000},
+  {key:"search_retargeting", tactic:"Search Retargeting", product:"Keyword + Geo", notes:"Contextual keyword targeting", retailCPM:14, level:2, minMonthlyImpressions:40000},
+  {key:"streaming_audio", tactic:"Streaming Audio", product:"RON + Geo", notes:"Spotify, Triton, Adswizz inventory", retailCPM:30, level:3, minMonthlyImpressions:40000},
+  {key:"streaming_audio_at", tactic:"Streaming Audio", product:"Audience Targeting", notes:"Behavioral + Demographic", retailCPM:35, level:3.5, minMonthlyImpressions:40000},
+  {key:"video_preroll_ron", tactic:"Video Pre-roll", product:"Run of Network", notes:"Geo targeting, broad reach", retailCPM:17, level:3, minMonthlyImpressions:40000},
+  {key:"video_preroll_behavioral", tactic:"Video Pre-roll", product:"Behavioral", notes:"Behavioral/Demo + Geo", retailCPM:21, level:3, minMonthlyImpressions:40000},
+  {key:"youtube_bumper", tactic:"Video", product:"YouTube Bumper Ads", notes:"Content + Geo targeting", retailCPM:20, level:4, minMonthlyImpressions:40000},
+  {key:"youtube_trueview", tactic:"Video", product:"YouTube True View", notes:"Pre-roll targeted by content category + geography, on YouTube inventory — pay only for completed views", retailCPV:0.14, level:3.5, minMonthlyViews:1500},
+  {key:"ctv_premium", tactic:"Video", product:"Streaming TV Premium", notes:"Run of network + Geo — connected TV", retailCPM:40, level:4, minMonthlyImpressions:20000},
+  {key:"ctv_plus", tactic:"Video", product:"Streaming TV Plus", notes:"Higher share of large-screen inventory", retailCPM:30, level:3.5, minMonthlyImpressions:20000},
+  {key:"ctv_6040", tactic:"Video", product:"Streaming TV 60/40 Split", notes:"Audience-targeted video, ~60% large-screen TV / ~40% small-screen (laptop/tablet)", retailCPM:30, level:3, minMonthlyImpressions:20000},
+  {key:"ctv_addressable", tactic:"Video", product:"Addressable Streaming TV", notes:"Geo Fence + Lookback + Address Match — connected TV conquesting", retailCPM:50, level:4, minMonthlyImpressions:20000},
+  {key:"facebook_deviceid", tactic:"Social", product:"Facebook Device ID Targeting", notes:"Geo Fence + Lookback on Facebook inventory — requires a minimum of 125,000 devices to run", retailCPM:17, level:3.5, minMonthlyImpressions:40000},
+  {key:"dooh", tactic:"DOOH", product:"Digital Out of Home", notes:"Physical digital display: roadside billboards, gas pumps, doctors' offices, movie theaters, bus shelters, etc.", retailCPM:15, level:2},
+  {key:"amazon_display", tactic:"Amazon", product:"Display", notes:"Targets Amazon, IMDb, and other third-party sites on the Amazon DSP", retailCPM:10, level:3, minMonthlyImpressions:40000},
+  {key:"amazon_ctv_pro", tactic:"Amazon", product:"Pro Streaming TV", notes:"Amazon first-party data targeting (in-market, interest, lifestyle, demographic) across large- and small-screen Streaming TV inventory", retailCPM:45, level:4},
+  {key:"amazon_ctv_reach", tactic:"Amazon", product:"Streaming TV — Reach", notes:"Lower-cost Streaming TV inventory (Samsung TV, Pluto, Plex, Twitch) with audience targeting", retailCPM:45, level:3, minMonthlyImpressions:40000},
+  {key:"amazon_ctv_prime", tactic:"Amazon", product:"Streaming TV — Prime Only", notes:"100% of impressions delivered on Amazon Prime", retailCPM:60, level:4, minMonthlyImpressions:20000},
+  {key:"amazon_ctv_primeplus", tactic:"Amazon", product:"Streaming TV — Prime Plus", notes:"Premium Streaming TV inventory: Amazon Prime, Hulu, Disney+, HBO Max, Peacock", retailCPM:65, level:5, minMonthlyImpressions:20000},
+  {key:"amazon_ctv_twitch", tactic:"Amazon", product:"Streaming TV — Twitch Only", notes:"100% of impressions delivered on Twitch, using Amazon's first-party data", retailCPM:40, level:4},
+  {key:"live_sports_all", tactic:"Live Sports", product:"All Sports Package", notes:"Streaming TV serving on live sports inventory across all devices", retailCPM:73.75, level:4, minMonthlyImpressions:20000},
+  {key:"live_sports_individual", tactic:"Live Sports", product:"Individual Sport — MLB, NHL, or NBA (Regular Season)", notes:"Streaming TV serving on MLB, NHL, or NBA live sports inventory across all devices", retailCPM:75, level:4, minMonthlyImpressions:20000},
+  {key:"live_sports_cfb", tactic:"Live Sports", product:"Individual Sport — College Football (Regular Season)", notes:"Streaming TV serving on College Football live sports inventory across all devices", retailCPM:87.5, level:4, minMonthlyImpressions:20000},
+  {key:"live_sports_nfl", tactic:"Live Sports", product:"Individual Sport — NFL (Regular Season)", notes:"Streaming TV serving on NFL live sports inventory across all devices", retailCPM:110, level:4, minMonthlyImpressions:20000},
+  {key:"email_inmarket", tactic:"Email", product:"In-Market", notes:"Dedicated email blast targeted via in-market user data, delivered to personal/work email addresses", retailCPM:28, level:3}
 ];
 
+/* Alt Network minimums aren't in Sean's spreadsheet (that rate card only
+   covers the standard network) - assumed to match the standard-network
+   counterpart's minimum for the same tactic category until confirmed. */
 const ALT_CPM_PRODUCTS = [
-  {key:"alt_display_ron", tactic:"Display", product:"Run of Network (Alt Network)", notes:"For cannabis, gambling, tobacco, and other restricted categories", retailCPM:15},
-  {key:"alt_display_dominant", tactic:"Display", product:"Dominant (Alt Network)", notes:"Content + Behavior + Demo + Retargeting + Geo, Alt Network inventory", retailCPM:17.5},
-  {key:"alt_display_deviceid", tactic:"Display", product:"Device ID (Alt Network)", notes:"Geo Fence + Lookback, Alt Network inventory", retailCPM:20},
-  {key:"alt_video_preroll", tactic:"Video", product:"Pre-roll (Alt Network)", notes:"Alt Network video inventory", retailCPM:45},
-  {key:"alt_ctv", tactic:"Video", product:"60/40 Streaming TV (Alt Network)", notes:"Alt Network CTV inventory", retailCPM:56}
+  {key:"alt_display_ron", tactic:"Display", product:"Run of Network (Alt Network)", notes:"For cannabis, gambling, tobacco, and other restricted categories", retailCPM:15, level:1, minMonthlyImpressions:40000},
+  {key:"alt_display_dominant", tactic:"Display", product:"Dominant (Alt Network)", notes:"Content + Behavior + Demo + Retargeting + Geo, Alt Network inventory", retailCPM:17.5, level:2, minMonthlyImpressions:40000},
+  {key:"alt_display_deviceid", tactic:"Display", product:"Device ID (Alt Network)", notes:"Geo Fence + Lookback, Alt Network inventory", retailCPM:20, level:3.5, minMonthlyImpressions:40000},
+  {key:"alt_video_preroll", tactic:"Video", product:"Pre-roll (Alt Network)", notes:"Alt Network video inventory", retailCPM:45, level:3, minMonthlyImpressions:40000},
+  {key:"alt_ctv", tactic:"Video", product:"60/40 Streaming TV (Alt Network)", notes:"Alt Network CTV inventory", retailCPM:56, level:3, minMonthlyImpressions:20000}
 ];
 
+/* Tiered "families": within one tactic category, only ONE tier should ever
+   be recommended at a time - the richest tier the objective's total budget
+   level unlocks REPLACES the cheaper one, rather than showing alongside it
+   (per Sean: "Dominant Display is great, but if budget allows I'd add in
+   Streaming TV, and maybe Streaming Audio... to get greater premium
+   awareness" - implemented as a replace-in-place upgrade per family, the
+   same pattern the original Display Basic->Dominant swap already used).
+   Ordered low -> high tier. */
+const TIERED_PRODUCT_FAMILIES = {
+  display: ["display_basic", "display_competitive", "display_dominant"],
+  ctv: ["ctv_plus", "ctv_premium"],
+  streaming_audio: ["streaming_audio", "streaming_audio_at"]
+};
+const TIERED_KEY_TO_FAMILY = {};
+Object.keys(TIERED_PRODUCT_FAMILIES).forEach(fam => {
+  TIERED_PRODUCT_FAMILIES[fam].forEach(k => { TIERED_KEY_TO_FAMILY[k] = fam; });
+});
+
+/* Sean's budget-level gauge: how much digital budget maps to which product
+   "level" ceiling (1-5, per the rate-card spreadsheet's Level column) -
+   $1,000-$2,500 mostly Level 1-2, $2,500-$3,500 Level 1-3, $3,500-$6,000
+   Level 2-4, $6,000-$10,000 Level 2-5. This is used only as a CEILING (the
+   richest tier unlocked) — a lower tier is never excluded outright, it's
+   only replaced once a richer one in the same family unlocks. Below
+   $1,000 stays at Level 1; the sheet doesn't define anything past $10,000,
+   so that band's Level-5 ceiling carries forward unchanged above it.
+   Judgment call: this is the objective's OWN total budget, not any single
+   goal's slice of it, so every goal in the objective shares one ceiling. */
+function digitalBudgetLevelCeiling(totalBudget){
+  if (totalBudget < 1000) return 1;
+  if (totalBudget < 2500) return 2;
+  if (totalBudget < 3500) return 3;
+  if (totalBudget < 6000) return 4;
+  return 5;
+}
+
+/* Per Sean's SEM rate card (SEM_RATE_CARD.xlsx - Google and Microsoft/Bing
+   SEM share this exact same 3-tier structure): the card's own suggested
+   retail fee is $500-$1,000/mo -> 40%, $1,001-$2,500/mo -> 30%,
+   $2,501+/mo -> 20%. Sean had already explicitly asked for that first
+   tier's RETAIL fee to be lowered from the card's suggested 40% to 30%
+   (see the SEM_TIERS[0] check in test_new_products.js), so this stays at
+   30% rather than "correcting" it back to the card's suggestion - only the
+   real $500/mo minimum ad spend below is new this round. */
 const SEM_TIERS = [
-  {maxSpend:1000, retailPct:0.40},
+  {maxSpend:1000, retailPct:0.30},
   {maxSpend:2500, retailPct:0.30},
   {maxSpend:Infinity, retailPct:0.20}
 ];
+// Real minimum monthly AD SPEND for SEM (Google or Microsoft/Bing) per the
+// rate card - the tier schedule itself starts at $500/mo, and nothing below
+// that is actually bookable. Mirrors GOOGLE_PMAX_MIN_SPEND below and the
+// CPM minMonthlyImpressions/minMonthlyViews floors - a real platform/agency
+// minimum, not a modeling nicety. Enforced both in auto-recommendation
+// (MINIMUM_ENFORCEMENT in computeDigitalPlanMulti) and in the manual
+// "add another tactic" flow (addManualDigitalTactic).
+const SEM_MIN_SPEND = 500;
 
 const SOCIAL_TIERS = [
   {maxSpend:2500, retailPct:0.35, campaigns:"Up to 2 campaigns/mo, up to 2 creatives, 1 objective"},
@@ -1130,6 +1222,45 @@ const EMAIL_PRODUCT = {
   note:"Flat rate covers up to ~32,500 emails; per-thousand pricing drops at higher volumes (as low as $11.50/1,000 at 500,000+). Confirm exact list size for precise pricing."
 };
 
+/* Real volume-tiered Email pricing, for the manual "add another digital
+   tactic" tool where a rep knows the client's exact list size. The
+   auto-recommendation engine intentionally keeps using EMAIL_PRODUCT's
+   flat $650/32,500-send baseline above (already accurate at that
+   assumption) rather than this table, since the algorithm never asks for
+   an exact send count. */
+const EMAIL_TIERS = [
+  {maxSends:49999, retailCPM:20},
+  {maxSends:99999, retailCPM:18},
+  {maxSends:249999, retailCPM:17},
+  {maxSends:299999, retailCPM:16},
+  {maxSends:399999, retailCPM:15},
+  {maxSends:499999, retailCPM:14},
+  {maxSends:Infinity, retailCPM:11.5}
+];
+function pickEmailTier(sends){ return EMAIL_TIERS.find(t => sends <= t.maxSends) || EMAIL_TIERS[EMAIL_TIERS.length - 1]; }
+
+const GA4_SETUP_PRODUCT = {
+  name:"GA4 & GTM Setup",
+  desc:"Google Analytics 4 & Google Tag Manager setup, including up to 20 conversions (click-to-call, contact form fills, etc.), call tracking setup, and pixel placement. Cross-domain/eCommerce setup available if needed.",
+  retailFlat:1000
+};
+
+/* TikTok's management fee follows the exact same spend-based 35%-to-20%
+   schedule as Facebook/Instagram (SOCIAL_TIERS), just without a setup fee
+   — the rate card lists no TikTok setup fee, so none is charged. */
+const TIKTOK_TIERS = [
+  {maxSpend:2500, retailPct:0.35},
+  {maxSpend:5000, retailPct:0.30},
+  {maxSpend:10000, retailPct:0.25},
+  {maxSpend:Infinity, retailPct:0.20}
+];
+
+// Per the same SEM_RATE_CARD.xlsx (Google Performance Max section): a
+// single $1,001+/mo tier at a 40% retail management fee - the old 35%/$1,000
+// figures here predate that rate card and didn't match it.
+const GOOGLE_PMAX_FEE_PCT = 0.40;
+const GOOGLE_PMAX_MIN_SPEND = 1001;
+
 /* ============ MANUAL "ADD ANOTHER DIGITAL TACTIC" ============ */
 /* Lets a rep hand-pick any product from the full catalog — not just what
    the algorithm recommended — for client-specific requests. Pulls from
@@ -1144,13 +1275,18 @@ function getFullDigitalCatalog(){
   }));
   const feeItems = [
     {value:'fee:sem', groupLabel:'Search & Social Management', displayLabel:'SEM (Google/Microsoft Ads)', kind:'sem'},
+    {value:'fee:pmax', groupLabel:'Search & Social Management', displayLabel:'Google Performance Max', kind:'pmax'},
     {value:'fee:social', groupLabel:'Search & Social Management', displayLabel:'Facebook & Instagram Management', kind:'social'},
-    {value:'fee:email', groupLabel:'Email', displayLabel:EMAIL_PRODUCT.name + ' ($' + EMAIL_PRODUCT.baseRetailFlat.toLocaleString() + '/mo)', kind:'email'}
+    {value:'fee:tiktok', groupLabel:'Search & Social Management', displayLabel:'TikTok Management', kind:'tiktok'},
+    {value:'fee:email', groupLabel:'Email', displayLabel:EMAIL_PRODUCT.name + ' ($' + EMAIL_PRODUCT.baseRetailFlat.toLocaleString() + '/mo, ~32,500 sends)', kind:'email'}
   ];
   const seoItems = SEO_PACKAGES.map(pkg => ({
     value: 'seo:' + slugifyForId(pkg.name), groupLabel:'SEO', displayLabel: pkg.name + ' ($' + pkg.retailFlat.toLocaleString() + '/mo)', kind:'seo', ref: pkg
   }));
-  return cpmItems.concat(feeItems, seoItems);
+  const setupItems = [
+    {value:'setup:ga4', groupLabel:'One-Time Setup', displayLabel: GA4_SETUP_PRODUCT.name + ' ($' + GA4_SETUP_PRODUCT.retailFlat.toLocaleString() + ' one-time)', kind:'setup', ref: GA4_SETUP_PRODUCT}
+  ];
+  return cpmItems.concat(feeItems, seoItems, setupItems);
 }
 
 function renderManualTacticSelectOptions(){
@@ -1168,9 +1304,54 @@ function onManualTacticChange(objIndex){
   const label = document.getElementById('manualTacticBudgetLabel_' + objIndex);
   const catalog = getFullDigitalCatalog();
   const item = catalog.find(c => c.value === select.value);
-  const needsBudget = item && (item.kind === 'cpm' || item.kind === 'sem' || item.kind === 'social');
+  const needsBudget = item && (item.kind === 'cpm' || item.kind === 'sem' || item.kind === 'social' || item.kind === 'tiktok' || item.kind === 'pmax' || item.kind === 'email');
   wrap.style.display = needsBudget ? 'block' : 'none';
-  if (item && label){ label.textContent = item.kind === 'cpm' ? 'Monthly budget' : 'Monthly ad spend'; }
+  if (item && label){
+    label.textContent = item.kind === 'cpm' ? 'Monthly budget' : (item.kind === 'email' ? 'Emails to send this month' : 'Monthly ad spend');
+  }
+}
+
+/* Used by addManualDigitalTactic when the rep checks "Fund this from the
+   existing budget" - shrinks the objective's own auto-recommended CPM
+   lines (never a protected/required line like SEM-for-Conversion or a
+   profile-matched tactic, never below any line's own real
+   minMonthlyImpressions/Views floor - see minDollarsFor) to free up
+   `neededDollars`, starting with the smallest/lowest-priority tactics
+   first (same precedent as the tactic-count cap elsewhere in this file).
+   Mutates plan.cpmLines in place (dropping any line shrunk all the way to
+   ~$0 - only possible for a tactic with no known real minimum) so the
+   next render reflects the new numbers. Returns {freed, shrunk} - freed
+   may be less than neededDollars if the mix can't safely give up that
+   much; the caller adds any shortfall on top of the budget as usual and
+   says so. Fee-based tactics (SEM/Social/SEO/etc.) aren't touched here -
+   they don't carry the same hard, platform-enforced floor a CPM tactic
+   does, so leaving them alone keeps this feature simple and safe rather
+   than reopening fee-tier math. */
+function attemptFundFromExistingBudget(objIndex, neededDollars){
+  const opData = lastDigitalObjectivesWithPlans[objIndex];
+  const plan = opData && opData.plan;
+  if (!plan || !plan.cpmLines || !plan.cpmLines.length) return {freed: 0, shrunk: []};
+
+  const shrinkable = plan.cpmLines.filter(l => !l.protected).sort((a,b) => a.monthlyDollars - b.monthlyDollars);
+  let stillNeeded = neededDollars;
+  const shrunk = [];
+  shrinkable.forEach(line => {
+    if (stillNeeded <= 0.005) return;
+    const floor = minDollarsFor(line) || 0;
+    const slack = Math.max(0, line.monthlyDollars - floor);
+    const take = Math.min(slack, stillNeeded);
+    if (take > 0.005){
+      line.monthlyDollars -= take;
+      const usesCPV = line.retailCPV != null;
+      line.impressions = usesCPV ? Math.round(line.monthlyDollars / line.retailCPV) : Math.round((line.monthlyDollars / line.retailCPM) * 1000);
+      line.impressionsLabel = line.impressions.toLocaleString() + (usesCPV ? ' completed views' : ' impressions');
+      stillNeeded -= take;
+      shrunk.push({name: line.tactic + ' - ' + line.product, took: take});
+    }
+  });
+  plan.cpmLines = plan.cpmLines.filter(l => l.monthlyDollars > 0.5);
+
+  return {freed: neededDollars - Math.max(0, stillNeeded), shrunk: shrunk};
 }
 
 function addManualDigitalTactic(objIndex){
@@ -1186,14 +1367,37 @@ function addManualDigitalTactic(objIndex){
   if (item.kind === 'cpm'){
     const budget = parseFloat(stripCommas(budgetInput.value)) || 0;
     if (budget <= 0){ alert('Enter a monthly budget for this tactic.'); return; }
-    const impressions = Math.round((budget / item.ref.retailCPM) * 1000);
+    // Same real, platform-enforced monthly minimum the auto-mix now holds
+    // itself to (see MINIMUM_ENFORCEMENT in computeDigitalPlanMulti) -
+    // block a manual add below it rather than showing something the
+    // platform won't actually run.
+    const manualFloor = minDollarsFor(item.ref);
+    if (manualFloor != null && budget < manualFloor - 0.005){
+      const unit = item.ref.retailCPV != null ? 'completed views' : 'impressions';
+      const need = item.ref.retailCPV != null ? item.ref.minMonthlyViews : item.ref.minMonthlyImpressions;
+      alert(item.displayLabel + ' has a real platform minimum of ' + need.toLocaleString() + ' ' + unit + '/month, which takes at least $' + Math.ceil(manualFloor).toLocaleString() + '/month at this rate. Enter at least that much, or choose a different tactic.');
+      return;
+    }
     name = item.displayLabel;
-    detail = impressions.toLocaleString() + ' impressions';
+    if (item.ref.retailCPV != null){
+      const views = Math.round(budget / item.ref.retailCPV);
+      detail = views.toLocaleString() + ' completed views';
+    } else {
+      const impressions = Math.round((budget / item.ref.retailCPM) * 1000);
+      detail = impressions.toLocaleString() + ' impressions';
+    }
     monthlyCost = budget;
     mockLine = {key: item.ref.key, tactic: item.ref.tactic};
   } else if (item.kind === 'sem'){
     const spend = parseFloat(stripCommas(budgetInput.value)) || 0;
     if (spend <= 0){ alert('Enter a monthly ad spend for this tactic.'); return; }
+    // Real rate-card minimum ad spend ($500/mo) - same own-minimum block
+    // the auto-mix now holds itself to (MINIMUM_ENFORCEMENT), and the same
+    // pattern as the CPM own-minimum check and PMax's own spend floor above.
+    if (spend < SEM_MIN_SPEND){
+      alert('SEM (Google/Microsoft Ads) requires a minimum ad spend of $' + SEM_MIN_SPEND.toLocaleString() + '/mo. Enter at least that much, or choose a different tactic.');
+      return;
+    }
     const tier = pickTier(SEM_TIERS, spend);
     monthlyCost = spend + spend * tier.retailPct;
     name = 'SEM (Google/Microsoft Ads)';
@@ -1209,16 +1413,40 @@ function addManualDigitalTactic(objIndex){
     name = 'Facebook & Instagram Management';
     detail = '$' + Math.round(spend).toLocaleString() + ' spend + ' + Math.round(tier.retailPct*100) + '% fee (monthly) + $' + SOCIAL_SETUP_FEE + ' one-time setup fee. ' + tier.campaigns;
     mockLine = {type:'social'};
+  } else if (item.kind === 'tiktok'){
+    const spend = parseFloat(stripCommas(budgetInput.value)) || 0;
+    if (spend <= 0){ alert('Enter a monthly ad spend for this tactic.'); return; }
+    const tier = pickTier(TIKTOK_TIERS, spend);
+    monthlyCost = spend + spend * tier.retailPct;
+    name = 'TikTok Management';
+    detail = '$' + Math.round(spend).toLocaleString() + ' spend + ' + Math.round(tier.retailPct*100) + '% fee (monthly). 90-day minimum commitment.';
+    mockLine = {type:'tiktok'};
+  } else if (item.kind === 'pmax'){
+    const spend = parseFloat(stripCommas(budgetInput.value)) || 0;
+    if (spend <= 0){ alert('Enter a monthly ad spend for this tactic.'); return; }
+    if (spend < GOOGLE_PMAX_MIN_SPEND){ alert('Google Performance Max requires a minimum spend of $' + GOOGLE_PMAX_MIN_SPEND.toLocaleString() + '/mo.'); return; }
+    monthlyCost = spend + spend * GOOGLE_PMAX_FEE_PCT;
+    name = 'Google Performance Max';
+    detail = '$' + Math.round(spend).toLocaleString() + ' spend + ' + Math.round(GOOGLE_PMAX_FEE_PCT*100) + '% management fee. 90-day minimum commitment ($' + GOOGLE_PMAX_MIN_SPEND.toLocaleString() + '/mo minimum spend).';
+    mockLine = {type:'pmax'};
   } else if (item.kind === 'seo'){
     monthlyCost = item.ref.retailFlat;
     name = item.ref.name;
     detail = item.ref.desc;
     mockLine = {type:'seo', label: item.ref.name};
   } else if (item.kind === 'email'){
-    monthlyCost = EMAIL_PRODUCT.baseRetailFlat;
+    const sends = parseFloat(stripCommas(budgetInput.value)) || 0;
+    if (sends <= 0){ alert('Enter the number of emails to send this month.'); return; }
+    const tier = pickEmailTier(sends);
+    monthlyCost = (sends / 1000) * tier.retailCPM;
     name = EMAIL_PRODUCT.name;
-    detail = EMAIL_PRODUCT.note;
+    detail = sends.toLocaleString() + ' emails at $' + tier.retailCPM + ' CPM.';
     mockLine = {type:'email'};
+  } else if (item.kind === 'setup'){
+    monthlyCost = 0;
+    name = item.ref.name;
+    detail = item.ref.desc + ' One-time fee: $' + item.ref.retailFlat.toLocaleString() + ' (not a recurring monthly cost).';
+    mockLine = {type:'setup', label: item.ref.name};
   }
 
   const planItem = {
@@ -1228,12 +1456,39 @@ function addManualDigitalTactic(objIndex){
     detail: detail,
     monthlyCost: monthlyCost
   };
+  if (item.kind === 'setup'){ planItem.oneTimeCost = item.ref.retailFlat; }
+
+  // Opt-in: "Fund this from the existing budget" shrinks the auto-mix
+  // above (never below any tactic's real minimum, never a protected/
+  // required line) to make room, instead of adding this straight on top
+  // of the objective's budget like usual. Off by default - see
+  // renderManualAddControlsHtml.
+  let fundingNoteHtml = '';
+  const fundCheckbox = document.getElementById('manualTacticFundFromBudget_' + objIndex);
+  if (fundCheckbox && fundCheckbox.checked && monthlyCost > 0){
+    const result = attemptFundFromExistingBudget(objIndex, monthlyCost);
+    const opData = lastDigitalObjectivesWithPlans[objIndex];
+    const autoMixBlock = document.getElementById('autoMixBlock_' + objIndex);
+    if (autoMixBlock && opData && opData.plan){
+      autoMixBlock.innerHTML = renderDigitalAutoMixHtml(opData.plan, opData.objective, industry, objIndex);
+    }
+    const freed = result.freed || 0;
+    const shrunkList = (result.shrunk && result.shrunk.length) ? result.shrunk.map(s => s.name).join(', ') : 'the existing mix';
+    if (freed >= monthlyCost - 0.5){
+      fundingNoteHtml = '<div style="font-size:12.5px; color:var(--text-muted); margin-top:4px;">Funded by trimming $' + Math.round(freed).toLocaleString() + ' from ' + shrunkList + ' above — no extra budget needed.</div>';
+    } else if (freed > 0.5){
+      fundingNoteHtml = '<div style="font-size:12.5px; color:#b00020; margin-top:4px;">Only $' + Math.round(freed).toLocaleString() + ' of the $' + Math.round(monthlyCost).toLocaleString() + ' needed could be freed from ' + shrunkList + ' without breaking a real minimum or a protected tactic — the remaining $' + Math.round(monthlyCost - freed).toLocaleString() + ' is added on top of this objective\'s budget.</div>';
+    } else {
+      fundingNoteHtml = '<div style="font-size:12.5px; color:#b00020; margin-top:4px;">Nothing could be freed from the existing mix without breaking a real minimum or a protected tactic — this tactic\'s full $' + Math.round(monthlyCost).toLocaleString() + ' is added on top of this objective\'s budget.</div>';
+    }
+  }
 
   const card = document.createElement('div');
   card.className = 'promo-card';
   card.style.marginTop = '8px';
   card.innerHTML = '<div class="p-name">' + name + ' <span style="font-weight:400; color:var(--text-muted); font-size:11.5px; text-transform:none; letter-spacing:0;">(manually added)</span></div>'
     + (detail ? ('<div style="font-size:12.5px; color:var(--text-muted);">' + detail + '</div>') : '')
+    + fundingNoteHtml
     + '<div style="margin-top:6px; font-size:13px;">' + getWhyThisWorks(mockLine, []) + '</div>'
     + renderComplianceWarningsHtml(industry, mockLine)
     + renderActionItemsHtml(mockLine)
@@ -1296,20 +1551,24 @@ const FUNNEL_STAGES = {
   awareness: {
     label:"Increase awareness",
     cpmKeys:["display_basic","ctv_premium","streaming_audio","youtube_bumper"],
-    feeKeys:[],
-    note:"Broad-reach, low-friction placements built to put the brand in front of the largest relevant audience."
+    feeKeys:["tiktok"],
+    note:"Broad-reach, low-friction placements — TikTok for young-skewing audiences, Facebook/Instagram otherwise — built to put the brand in front of the largest relevant audience."
   },
   interest: {
     label:"Drive interest in specific products/services",
-    cpmKeys:["native","video_preroll_behavioral","display_competitive"],
-    feeKeys:["email"],
-    note:"Contextual and behavioral placements plus targeted email reach people already showing relevant interest."
+    // Just one literal member of the "display" tiered family is listed here
+    // (not also "display_competitive") - since Display is now a tiered
+    // family (see TIERED_PRODUCT_FAMILIES), any member resolves to the same
+    // budget-appropriate pick, so listing more than one is redundant.
+    cpmKeys:["native","video_preroll_behavioral","display_basic"],
+    feeKeys:["email","tiktok"],
+    note:"Contextual, behavioral, and social placements — plus Display — reach people already showing relevant interest."
   },
   conquest: {
     label:"Compete against specific competitors",
-    cpmKeys:["display_deviceid","display_microprox"],
+    cpmKeys:["display_deviceid","display_microprox","facebook_deviceid"],
     feeKeys:["sem"],
-    note:"Geo-fencing competitor locations and bidding on competitive search terms to intercept their traffic."
+    note:"Geo-fencing competitor locations (on display and Facebook/Instagram) and bidding on competitive search terms to intercept their traffic."
   },
   retention: {
     label:"Increase customer retention",
@@ -1319,11 +1578,99 @@ const FUNNEL_STAGES = {
   },
   conversion: {
     label:"Drive conversions / leads",
-    cpmKeys:["display_dominant"],
+    cpmKeys:[],
+    // Performance Max deliberately excluded from auto-recommendation - per
+    // Sean, SEM and PMax are both SEM products and should never be
+    // recommended in the same plan. SEM wins the auto-pick (guaranteed via
+    // requiredFeeKeys below); PMax is still available as a manual
+    // "add another tactic" swap-in for the rare case a rep wants it
+    // instead of SEM, just never blended in alongside it automatically.
     feeKeys:["sem","seo","social"],
-    note:"High-intent tactics built to close: paid search, organic search, and lead-gen social."
+    // SEM is the most direct driver of conversion/lead-gen — per Sean, it
+    // should show at some level 100% of the time this goal is selected, so
+    // it's protected from the dynamic tactic-count cap below (see
+    // requiredFeeKeys handling in computeDigitalPlanMulti). This goal has no
+    // cpmKeys on purpose (Display Dominant moved to Awareness/Interest per
+    // Sean's spreadsheet - it's not a conversion-stage product), so when
+    // conversion is the only goal selected, its full budget splits across
+    // SEM/SEO/Social instead of one tactic crowding the rest out.
+    requiredFeeKeys:["sem"],
+    note:"High-intent tactics built to close: paid search (SEM), organic search, and lead-gen social."
   }
 };
+
+/* Per Sean: TikTok's audience skews young, so it should only be the default
+   social pick for objectives actually targeting a young demo - "12+" (an
+   all-ages/family audience that still skews young overall) and "18-34"
+   (explicitly young adults). Every OTHER age-target option - including the
+   open-ended "18+", which reaches just as far past 34 as "21+" or "25-54"
+   do - defaults to Facebook/Instagram ("social") instead, since Sean was
+   clear he gets nervous defaulting TikTok onto any open-ended-older bracket.
+   This only matters for goals where TikTok is even a candidate today
+   (Awareness, Interest) - Retention and Conversion already only ever offer
+   Facebook/Instagram for their social pick, regardless of age, so nothing
+   changes there. Deliberately separate from the Gen Z entry in
+   CUSTOMER_PROFILE_RULES below, which fires off free-text keyword matches
+   (independent of this ageTarget dropdown) and is left untouched. */
+const TIKTOK_ELIGIBLE_AGE_TARGETS = new Set(["12+", "18-34"]);
+function socialFeeKeyForAge(ageTarget){
+  return TIKTOK_ELIGIBLE_AGE_TARGETS.has(ageTarget) ? "tiktok" : "social";
+}
+
+/* Customer-profile-based tactic guidance — built by interviewing Sean
+   (per his own request) rather than guessing at his logic. When the rep's
+   free-text "Interests & behaviors" field mentions one of these audience
+   signals, the matched tactic(s) blend directly into the mix — guaranteed
+   a seat the same way SEM is guaranteed for Conversion — rather than just
+   appearing as a manual suggestion. Every rule is scoped to a single
+   funnel stage (per Sean: these are all "awareness tactics" in his own
+   framing) and only ever fires when the rep has actually selected that
+   goal, so it plugs into the existing goal-gating everything else already
+   respects. Keyword lists are a first draft, meant to be tuned over time
+   as real client profiles come through — not a one-time guess to get
+   perfectly right up front. */
+const CUSTOMER_PROFILE_RULES = [
+  {
+    id:"sports_fans", label:"Men + sports fans", stage:"awareness",
+    // Naming a specific league/sport should trigger this rule on its own,
+    // not just the generic "sports fan" phrasing - kept in sync with the
+    // league regex in resolveCpmKeys below.
+    keywords:["sports fan","sports fans","sport fan","sports enthusiast","men and sports","college football","ncaa football","cfb","nfl","pro football","mlb","nba","nhl","baseball fan","basketball fan","hockey fan"],
+    cpmKeys:[], feeKeys:[],
+    // Prefers a specific league's inventory when the profile names one,
+    // otherwise falls back to the general all-sports package.
+    resolveCpmKeys(profileTextLower){
+      if (/college football|ncaa football|\bcfb\b/.test(profileTextLower)) return ["live_sports_cfb"];
+      if (/\bnfl\b|pro football/.test(profileTextLower)) return ["live_sports_nfl"];
+      if (/\bmlb\b|\bnba\b|\bnhl\b|baseball|basketball|hockey/.test(profileTextLower)) return ["live_sports_individual"];
+      return ["live_sports_all"];
+    }
+  },
+  {
+    id:"parents_family", label:"Women / parents & family", stage:"awareness",
+    keywords:["parent","parents","mom","moms","mother","dad","dads","father","family","families","kids","children"],
+    cpmKeys:["native","amazon_ctv_pro"], feeKeys:["social"]
+  },
+  {
+    id:"affluent_luxury", label:"Affluent / luxury shoppers", stage:"awareness",
+    keywords:["affluent","luxury","high income","high-income","upscale","wealthy","high net worth","premium shopper"],
+    cpmKeys:["amazon_ctv_prime","ctv_premium","display_deviceid","streaming_audio_at"], feeKeys:[]
+  },
+  {
+    id:"gen_z", label:"Younger / Gen Z", stage:"awareness",
+    keywords:["gen z","genz","gen-z","teen","teens","college student","college students","young adult","young adults","18-24","18 to 24"],
+    cpmKeys:["youtube_trueview","amazon_ctv_twitch"], feeKeys:["tiktok","social"]
+  },
+  {
+    id:"local_community", label:"Local / community-minded", stage:"awareness",
+    keywords:["local community","community-minded","hometown","neighborhood","civic","local pride","community focused","support local"],
+    // "Live Sports (local team games)" is deliberately the Individual Sport
+    // package here (MLB/NHL/NBA regular season), not the all-sports
+    // package the sports_fans rule above uses — a narrower, more "your
+    // hometown team" read per Sean's own phrasing for this bucket.
+    cpmKeys:["dooh","video_preroll_behavioral","live_sports_individual"], feeKeys:["sem"]
+  }
+];
 
 const ALT_KEY_MAP = {
   display_basic:"alt_display_ron",
@@ -1340,6 +1687,7 @@ const ALT_KEY_MAP = {
   youtube_bumper:"alt_video_preroll",
   ctv_premium:"alt_ctv",
   ctv_plus:"alt_ctv",
+  ctv_6040:"alt_ctv",
   ctv_addressable:"alt_ctv"
   /* native, site/search retargeting, and streaming audio have no Alt Network
      equivalent on the current rate card, so they're intentionally omitted
@@ -1504,7 +1852,8 @@ function renderPlanPanel(){
   if (!countEl || !totalEl || !listEl) return;
   countEl.textContent = officialPlan.length;
   const total = officialPlan.reduce(function(s,i){ return s + (i.monthlyCost || 0); }, 0);
-  totalEl.textContent = '$' + Math.round(total).toLocaleString() + '/mo';
+  const oneTimeTotal = officialPlan.reduce(function(s,i){ return s + (i.oneTimeCost || 0); }, 0);
+  totalEl.textContent = '$' + Math.round(total).toLocaleString() + '/mo' + (oneTimeTotal ? (' + $' + Math.round(oneTimeTotal).toLocaleString() + ' one-time') : '');
   if (!officialPlan.length){
     listEl.innerHTML = '<div class="plan-empty-note">Nothing added yet — use "+ Add to Plan" on any recommendation.</div>';
     return;
@@ -1551,6 +1900,7 @@ function exportPlanToPdf(){
   const pricedItems = officialPlan.filter(function(i){ return (i.monthlyCost || 0) > 0; });
   const allHaveCampaignTotal = pricedItems.length > 0 && pricedItems.every(function(i){ return i.campaignTotal != null; });
   const campaignGrandTotal = allHaveCampaignTotal ? officialPlan.reduce(function(s,i){ return s + (i.campaignTotal || 0); }, 0) : null;
+  const oneTimeTotal = officialPlan.reduce(function(s,i){ return s + (i.oneTimeCost || 0); }, 0);
 
   let html = '<div style="font-family:Georgia,serif; padding:20px;">';
   if (MAX_MEDIA_LOGO){ html += '<img src="' + MAX_MEDIA_LOGO + '" alt="Max Media" style="max-height:50px; margin-bottom:14px;">'; }
@@ -1576,6 +1926,9 @@ function exportPlanToPdf(){
     });
   });
   html += '<h2 style="margin-top:26px; font-size:18px;">Total monthly investment: $' + Math.round(total).toLocaleString() + '</h2>';
+  if (oneTimeTotal){
+    html += '<p style="margin-top:2px; font-size:13px; color:#555;">Plus $' + Math.round(oneTimeTotal).toLocaleString() + ' in one-time setup fees (not recurring).</p>';
+  }
   if (campaignGrandTotal != null){
     html += '<h2 style="margin-top:6px; font-size:18px;">Total campaign investment: $' + Math.round(campaignGrandTotal).toLocaleString() + '</h2>';
   } else if (pricedItems.some(function(i){ return i.campaignTotal != null; })){
@@ -4357,7 +4710,19 @@ function useSuggested(tab){
   if (tab === 'broadcast' && window._suggestedBroadcast != null){
     document.getElementById('bBudget').value = window._suggestedBroadcast.toLocaleString();
   } else if (tab === 'digital' && window._suggestedDigital != null){
-    document.getElementById('dBudget').value = window._suggestedDigital.toLocaleString();
+    // dBudget is now a read-only computed total, so the suggested figure
+    // gets split across whatever objectives currently exist instead -
+    // evenly, with any remainder folded into the last one so the parts
+    // always sum exactly back to the suggested total.
+    const fields = document.querySelectorAll('.obj-budget-dollars');
+    if (fields.length){
+      const n = fields.length;
+      const share = Math.floor(window._suggestedDigital / n);
+      fields.forEach((el, i) => {
+        el.value = (i === n - 1 ? (window._suggestedDigital - share * (n - 1)) : share).toLocaleString();
+      });
+      recalcTotalDigitalBudget();
+    }
   } else {
     alert('Click "Suggest Budget" above first.');
   }
@@ -5005,30 +5370,67 @@ const FUNNEL_SHORT_LABELS = {
   conversion: "Conversion"
 };
 
-let objectiveBudgetPcts = [100];
+/* Per-objective budget split ACROSS its selected goals (e.g. 30% awareness
+   / 40% conversion / 20% intent / 10% retention on one objective) - a rep
+   can now weight the funnel instead of every checked goal always getting
+   an even share. One entry per objective, each a {goalId: pct} map (only
+   for goals currently checked on that objective; pcts sum to ~100). Only
+   ever consumed via readObjectivesFromDOM(), which reads the live slider
+   DOM rather than trusting this array directly - it exists mainly to carry
+   state between re-renders (goal checkbox toggles, add/remove objective). */
+let objectiveGoalPcts = [{awareness:100}];
+
+/* Live reference to the last generated digital plan per objective (set at
+   the end of generateDigital()), so the manual "add another tactic" flow
+   can look up and mutate the CURRENT auto-mix (cpmLines/feeLines) for its
+   objective when "Fund this from the existing budget" is checked - see
+   addManualDigitalTactic. Index-aligned with the rendered objective
+   blocks; a manual add always targets whatever's here right now, including
+   any shrinking from an earlier manual add in the same session. */
+let lastDigitalObjectivesWithPlans = [];
+
+function evenGoalPcts(goals){
+  const pcts = {};
+  const even = goals.length ? Math.floor(100 / goals.length) : 0;
+  goals.forEach((g,i) => { pcts[g] = (i < goals.length - 1) ? even : 100 - even * (goals.length - 1); });
+  return pcts;
+}
 
 function initDigitalObjectives(){
-  renderObjectivesContainer([{label:"", ageTarget:"35-54", gender:"balanced", interests:"", geoScope:"city", geography:"", goals:["awareness"]}], objectiveBudgetPcts);
+  renderObjectivesContainer([{label:"", ageTarget:"35-54", gender:"balanced", interests:"", geoScope:"city", geography:"", goals:["awareness"], budgetDollars:""}]);
 }
 
 const DIGITAL_AGE_OPTIONS = ["12+","18+","18-34","18-49","21+","25-54","25-49","35-54","35+","55+"];
 
 function readObjectivesFromDOM(){
   const blocks = document.querySelectorAll('.objective-block');
-  return Array.from(blocks).map(block => ({
-    label: block.querySelector('.obj-label').value,
-    ageTarget: block.querySelector('.obj-age').value,
-    gender: block.querySelector('.obj-gender').value,
-    interests: block.querySelector('.obj-interests').value,
-    geoScope: block.querySelector('.obj-geo-scope').value,
-    geography: block.querySelector('.obj-geo').value,
-    flightStart: block.querySelector('.obj-flight-start').value,
-    flightEnd: block.querySelector('.obj-flight-end').value,
-    goals: Array.from(block.querySelectorAll('.obj-goal-check:checked')).map(el => el.value)
-  }));
+  return Array.from(blocks).map(block => {
+    const goalPctSliders = Array.from(block.querySelectorAll('.goal-pct-slider'));
+    const goalPcts = {};
+    goalPctSliders.forEach(s => { goalPcts[s.getAttribute('data-goal')] = parseFloat(s.value) || 0; });
+    return {
+      label: block.querySelector('.obj-label').value,
+      ageTarget: block.querySelector('.obj-age').value,
+      gender: block.querySelector('.obj-gender').value,
+      interests: block.querySelector('.obj-interests').value,
+      geoScope: block.querySelector('.obj-geo-scope').value,
+      geography: block.querySelector('.obj-geo').value,
+      flightStart: block.querySelector('.obj-flight-start').value,
+      flightEnd: block.querySelector('.obj-flight-end').value,
+      // Direct dollar entry per objective (replaced the old "budget emphasis"
+      // percentage-of-total slider) - stored as a plain numeric string with
+      // commas stripped, so downstream consumers can parseFloat it directly.
+      budgetDollars: stripCommas(block.querySelector('.obj-budget-dollars').value),
+      goals: Array.from(block.querySelectorAll('.obj-goal-check:checked')).map(el => el.value),
+      // Only populated when 2+ goals are checked (sliders only render then)
+      // - a single-goal objective has no ambiguity to resolve, and
+      // computeDigitalPlanMulti falls back to an even split when this is empty.
+      goalPcts: goalPctSliders.length ? goalPcts : null
+    };
+  });
 }
 
-function renderObjectivesContainer(existing, pcts){
+function renderObjectivesContainer(existing){
   const container = document.getElementById('dObjectivesContainer');
   let html = '';
   existing.forEach((obj, i) => {
@@ -5062,56 +5464,125 @@ function renderObjectivesContainer(existing, pcts){
       + '<button type="button" class="use-btn" onclick="setObjectiveFlightMonths(' + i + ',12)">12 months</button>'
       + '</div>'
       + '<div class="field" style="margin-bottom:10px;"><label>Goals for this objective</label><div class="goal-grid">'
-      + Object.keys(GOAL_LABELS).map(g => '<label class="checkbox-row"><input type="checkbox" class="obj-goal-check" value="' + g + '" ' + (obj.goals.includes(g) ? 'checked' : '') + '> ' + GOAL_LABELS[g] + '</label>').join('')
+      + Object.keys(GOAL_LABELS).map(g => '<label class="checkbox-row"><input type="checkbox" class="obj-goal-check" value="' + g + '" ' + (obj.goals.includes(g) ? 'checked' : '') + ' onchange="onGoalCheckChange(' + i + ')"> ' + GOAL_LABELS[g] + '</label>').join('')
       + '</div></div>'
-      + '<div class="field" style="margin-bottom:0;"><label>Budget emphasis: <span id="objPct_' + i + '">' + Math.round(pcts[i]) + '%</span></label>'
-      + '<input type="range" id="objSlider_' + i + '" min="0" max="100" value="' + pcts[i] + '" oninput="onSliderChange(' + i + ', this.value)" style="width:100%;">'
+      + '<div id="goalPctSliders_' + i + '">' + renderGoalPctSlidersHtml(i, obj.goals) + '</div>'
+      + '<div class="field" style="margin-bottom:0;"><label>Budget for this objective ($/mo) <span class="hint">Runs on this objective\'s own flight dates above, if set</span></label>'
+      + '<input type="text" inputmode="numeric" class="obj-budget-dollars" value="' + (obj.budgetDollars && parseFloat(obj.budgetDollars) ? Number(stripCommas(obj.budgetDollars)).toLocaleString() : '') + '" placeholder="e.g. 2,000" oninput="formatNumberInput(this); recalcTotalDigitalBudget();">'
       + '</div>'
       + '</div>';
   });
   container.innerHTML = html;
+  recalcTotalDigitalBudget();
+}
+
+/* The top-level "Monthly digital budget" field is now a read-only computed
+   sum of every objective's own dollar entry (rather than a target the reps
+   splits across objectives via a percentage slider) - this keeps it correct
+   after every render, add, remove, or per-objective edit. */
+function recalcTotalDigitalBudget(){
+  const fields = document.querySelectorAll('.obj-budget-dollars');
+  const total = Array.from(fields).reduce((s, el) => s + (parseFloat(stripCommas(el.value)) || 0), 0);
+  const dBudgetEl = document.getElementById('dBudget');
+  if (dBudgetEl) dBudgetEl.value = total ? total.toLocaleString() : '';
+}
+
+/* Keeps the objectiveGoalPcts array (one {goalId:pct} map per objective)
+   in step with whatever's actually on the DOM right now, before an
+   add/remove reshuffles indices - falls back to an even split for any
+   objective whose sliders weren't rendered (single-goal objectives). */
+function syncObjectiveGoalPctsFromExisting(existing){
+  objectiveGoalPcts = existing.map(obj => (obj.goalPcts && Object.keys(obj.goalPcts).length) ? obj.goalPcts : evenGoalPcts(obj.goals));
 }
 
 function addObjective(){
   const existing = readObjectivesFromDOM();
-  existing.push({label:"", ageTarget:"35-54", gender:"balanced", interests:"", geoScope:"city", geography:"", goals:["awareness"]});
-  const n = existing.length;
-  const evenPct = Math.floor(100 / n);
-  objectiveBudgetPcts = existing.map((_,i) => i < n-1 ? evenPct : 100 - evenPct*(n-1));
-  renderObjectivesContainer(existing, objectiveBudgetPcts);
+  syncObjectiveGoalPctsFromExisting(existing);
+  existing.push({label:"", ageTarget:"35-54", gender:"balanced", interests:"", geoScope:"city", geography:"", goals:["awareness"], budgetDollars:""});
+  objectiveGoalPcts.push({awareness:100});
+  renderObjectivesContainer(existing);
 }
 
 function removeObjective(idx){
   const existing = readObjectivesFromDOM();
   if (existing.length <= 1) return;
+  syncObjectiveGoalPctsFromExisting(existing);
   existing.splice(idx, 1);
-  const n = existing.length;
-  const evenPct = Math.floor(100 / n);
-  objectiveBudgetPcts = existing.map((_,i) => i < n-1 ? evenPct : 100 - evenPct*(n-1));
-  renderObjectivesContainer(existing, objectiveBudgetPcts);
+  objectiveGoalPcts.splice(idx, 1);
+  renderObjectivesContainer(existing);
 }
 
-function onSliderChange(idx, newValueStr){
+/* Per-objective, per-GOAL budget-emphasis sliders (e.g. 30% awareness / 40%
+   conversion / 20% intent / 10% retention on the SAME objective) - appear
+   automatically whenever 2+ goals are checked on an objective, starting at
+   an even split; a single-goal objective shows nothing here since there's
+   no split to make. (This is a separate, per-objective concept from the
+   objective's own dollar budget field - this slider only splits ONE
+   objective's dollars across ITS OWN checked goals.) */
+function renderGoalPctSlidersHtml(objIndex, goals){
+  if (!objectiveGoalPcts[objIndex]) objectiveGoalPcts[objIndex] = evenGoalPcts(goals);
+  const current = objectiveGoalPcts[objIndex];
+  // Reconcile membership: drop unchecked goals, add newly-checked ones,
+  // then renormalize back to 100 so the sliders always sum sanely.
+  const hasSameMembership = goals.length === Object.keys(current).length && goals.every(g => current.hasOwnProperty(g));
+  if (!hasSameMembership){
+    // If the sliders are newly appearing (the objective previously had 0 or 1
+    // goals checked, so `current` holds a meaningless "100% of one goal"
+    // value rather than a real user-set weighting), start everyone even
+    // instead of letting that old sole-goal value bias the new split.
+    const wasSingleGoal = Object.keys(current).length < 2;
+    let rebuilt;
+    if (wasSingleGoal){
+      rebuilt = evenGoalPcts(goals);
+    } else {
+      rebuilt = evenGoalPcts(goals);
+      goals.forEach(g => { if (current.hasOwnProperty(g)) rebuilt[g] = current[g]; });
+      let total = goals.reduce((s,g) => s + rebuilt[g], 0);
+      if (total > 0){ goals.forEach(g => { rebuilt[g] = rebuilt[g] * 100 / total; }); }
+    }
+    objectiveGoalPcts[objIndex] = rebuilt;
+  }
+  if (goals.length < 2) return '';
+  const pcts = objectiveGoalPcts[objIndex];
+  return '<div class="field" style="margin-bottom:10px;"><label>Budget emphasis by goal <span class="hint">Weight the funnel instead of splitting evenly across the goals above</span></label>'
+    + goals.map(g =>
+        '<div style="margin-bottom:6px;"><div style="display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-muted);"><span>' + FUNNEL_SHORT_LABELS[g] + '</span><span id="goalPct_' + objIndex + '_' + g + '">' + Math.round(pcts[g]) + '%</span></div>'
+        + '<input type="range" class="goal-pct-slider" data-goal="' + g + '" min="0" max="100" value="' + pcts[g] + '" oninput="onGoalPctSliderChange(' + objIndex + ', \'' + g + '\', this.value)" style="width:100%;"></div>'
+      ).join('')
+    + '</div>';
+}
+
+function onGoalCheckChange(objIndex){
+  const block = document.querySelector('.objective-block[data-index="' + objIndex + '"]');
+  if (!block) return;
+  const goals = Array.from(block.querySelectorAll('.obj-goal-check:checked')).map(el => el.value);
+  const wrap = document.getElementById('goalPctSliders_' + objIndex);
+  if (wrap) wrap.innerHTML = renderGoalPctSlidersHtml(objIndex, goals);
+}
+
+function onGoalPctSliderChange(objIndex, goalId, newValueStr){
+  const pcts = objectiveGoalPcts[objIndex];
+  if (!pcts) return;
+  const goals = Object.keys(pcts);
   const newValue = parseFloat(newValueStr);
-  const n = objectiveBudgetPcts.length;
-  const old = objectiveBudgetPcts[idx];
+  const old = pcts[goalId];
   const delta = newValue - old;
-  objectiveBudgetPcts[idx] = newValue;
-  const others = [...Array(n).keys()].filter(i => i !== idx);
-  const othersSum = others.reduce((s,i) => s + objectiveBudgetPcts[i], 0);
+  pcts[goalId] = newValue;
+  const others = goals.filter(g => g !== goalId);
+  const othersSum = others.reduce((s,g) => s + pcts[g], 0);
   if (othersSum > 0.0001){
-    others.forEach(i => { objectiveBudgetPcts[i] = Math.max(0, objectiveBudgetPcts[i] - delta * (objectiveBudgetPcts[i] / othersSum)); });
+    others.forEach(g => { pcts[g] = Math.max(0, pcts[g] - delta * (pcts[g] / othersSum)); });
   } else if (others.length){
     const share = Math.max(0, -delta) / others.length;
-    others.forEach(i => { objectiveBudgetPcts[i] = share; });
+    others.forEach(g => { pcts[g] = share; });
   }
-  let total = objectiveBudgetPcts.reduce((a,b) => a+b, 0);
-  if (total > 0){ objectiveBudgetPcts = objectiveBudgetPcts.map(v => v * 100 / total); }
-  objectiveBudgetPcts.forEach((v,i) => {
-    const slider = document.getElementById('objSlider_' + i);
-    const readout = document.getElementById('objPct_' + i);
-    if (slider && i !== idx) slider.value = v;
-    if (readout) readout.textContent = Math.round(v) + '%';
+  let total = goals.reduce((s,g) => s + pcts[g], 0);
+  if (total > 0){ goals.forEach(g => { pcts[g] = pcts[g] * 100 / total; }); }
+  goals.forEach(g => {
+    const slider = document.querySelector('.objective-block[data-index="' + objIndex + '"] .goal-pct-slider[data-goal="' + g + '"]');
+    const readout = document.getElementById('goalPct_' + objIndex + '_' + g);
+    if (slider && g !== goalId) slider.value = pcts[g];
+    if (readout) readout.textContent = Math.round(pcts[g]) + '%';
   });
 }
 
@@ -5187,6 +5658,8 @@ const PRODUCT_DESCRIPTIONS = {
   video_preroll_ron: "Programmatic Video ads are your ticket to capturing your audience's undivided attention — target your ideal audience by their local geography and drive engagement through your captivating ad.",
   video_preroll_behavioral: "Programmatic Video ads that target your ideal audience by their behaviors and demographics, not just geography, driving engagement through a more precisely-matched captivating ad.",
   youtube_bumper: "Non-skippable ads are short in-stream video ads that play before, during, or after another video — viewers don't have the option to skip. With videos between 6 and 15 seconds, non-skippable ads let you reach viewers with your entire message.",
+  youtube_trueview: "A pre-roll video campaign targeted by content category and geography, running exclusively on YouTube inventory — and priced so you only pay when someone actually watches the ad through to completion, not for every impression served.",
+  setup: "Google Analytics 4 (GA4) and Google Tag Manager (GTM) setup, including up to 20 conversions tracked (click-to-call, contact form fills, and more), call tracking, and pixel placement — the foundation that makes every other digital tactic's results measurable.",
   ctv_premium: "Ads appear exclusively on streaming TV channels, offering a premium viewing experience across all devices (excluding FAST inventory), with targeting that can include both user behaviors and geography.",
   ctv_plus: "A video campaign that exclusively targets streaming TV inventory across all devices, with targeting that can include both user behaviors and geography.",
   ctv_addressable: "Addressable Streaming TV combines the brand awareness-building power of advertising on large-screen, TV-size devices with the efficiency of micro-targeting your exact audience — target by single location, neighborhood, or event, and track foot traffic back to your business from the ad.",
@@ -5197,7 +5670,23 @@ const PRODUCT_DESCRIPTIONS = {
   alt_ctv: "Streaming TV inventory on both large-screen TVs and small-screen devices, using Alt Network inventory approved for restricted categories.",
   sem: "Paid Search, also referred to as Search Engine Marketing (SEM) or pay-per-click (PPC) advertising, involves bidding on keywords or phrases to display ads prominently on search engine results pages. This enables advertisers to reach their target audience effectively and drive relevant traffic to their websites.",
   social: "Captivate your audience during the meaningful part of their day spent on social media, ensuring your brand, ideas, and messages reach targeted individuals effectively. Incorporating social media into an omnichannel strategy completes the customer journey, enhancing brand visibility and engagement.",
-  email: "Maximize your outreach and engagement with tailored email campaigns sent on behalf of your brand. Use in-market user data to target individuals based on their interests, behaviors, and recent browsing history, delivering messages to their personal or work emails with 100% in-box delivery, no spam."
+  email: "Maximize your outreach and engagement with tailored email campaigns sent on behalf of your brand. Use in-market user data to target individuals based on their interests, behaviors, and recent browsing history, delivering messages to their personal or work emails with 100% in-box delivery, no spam.",
+  email_inmarket: "A dedicated email blast that reaches people using real in-market purchase-intent data, not just a demographic match — delivered straight to their personal or work inbox, so the message lands in front of people already showing buying signals for this category.",
+  facebook_deviceid: "Target Facebook and Instagram inventory with the same Device ID precision as our display product — reaching devices that have physically been in a specific location, like a competitor's, within a defined timeframe. Requires a minimum audience of 125,000 devices to run.",
+  dooh: "Physical digital screens — roadside billboards, gas pump toppers, doctors' office and waiting-room displays, movie theater screens, bus shelters, and more — extend a campaign's reach into the real world, reinforcing the same message consumers see online.",
+  ctv_6040: "An audience-targeted video campaign weighted toward large-screen Streaming TV inventory (about 60%) with the remainder running on small-screen devices like laptops and tablets — a reach-building blend across the biggest and most-watched screens.",
+  amazon_display: "Display ads across Amazon.com, IMDb, and other third-party sites on the Amazon DSP, powered by Amazon's own shopping and browsing data — a way to reach consumers while they're already in a buying mindset.",
+  amazon_ctv_pro: "Streaming TV inventory across both large screens and small screens, targeted using Amazon's first-party shopping data — in-market, interest, lifestyle, or demographic — to put a video message in front of the exact audience most likely to convert.",
+  amazon_ctv_reach: "A lower-cost entry into Streaming TV, running on inventory like Samsung TV, Pluto, Plex, and Twitch with Amazon audience targeting layered on — built to extend video reach efficiently.",
+  amazon_ctv_prime: "100% of impressions run on Amazon Prime Video — premium, exclusive placement for advertisers who want their video message specifically in front of Prime's audience.",
+  amazon_ctv_primeplus: "Premium Streaming TV inventory across Amazon Prime, Hulu, Disney+, HBO Max, and Peacock — the top tier of streaming placements for maximum brand impact.",
+  amazon_ctv_twitch: "100% of impressions run on Twitch, using Amazon's first-party data to reach Twitch's engaged, hard-to-reach streaming audience.",
+  live_sports_all: "Streaming TV placements across all live sports inventory and every device — a broad way to reach the passionate, highly-engaged audience that live sports draws.",
+  live_sports_individual: "Streaming TV placements on MLB, NHL, or NBA live game inventory (regular season), across every device — for advertisers who want to be specifically associated with one sport's fan base.",
+  live_sports_cfb: "Streaming TV placements on College Football live game inventory (regular season), across every device — reaching one of the most loyal, regionally-passionate fan bases in sports.",
+  live_sports_nfl: "Streaming TV placements on NFL live game inventory (regular season), across every device — premium placement alongside the single most-watched sport in the country.",
+  tiktok: "Reach TikTok's fast-growing, highly engaged audience with paid social campaigns built for the platform — the same spend-based management approach as Facebook & Instagram, tailored to TikTok's native ad formats.",
+  pmax: "Google's automated, cross-network ad format that shows a single campaign across Search, Display, YouTube, Gmail, and Maps simultaneously — Google's own machine learning finds and bids on the highest-converting placements in real time."
 };
 
 const SEO_PRODUCT_DESCRIPTIONS = {
@@ -5312,10 +5801,7 @@ function renderActionItemsForAddonText(text){
 }
 
 function getDigitalInputs(){
-  const objectivesRaw = readObjectivesFromDOM();
-  const objectives = objectivesRaw.map((o, i) => Object.assign({}, o, {
-    budgetPct: objectiveBudgetPcts[i] != null ? objectiveBudgetPcts[i] : (100 / objectivesRaw.length)
-  }));
+  const objectives = readObjectivesFromDOM();
   return {
     clientName: document.getElementById('dClientName').value.trim() || "this client",
     category: document.getElementById('dCategory').value.trim() || "not specified",
@@ -5524,6 +6010,38 @@ function solveFeeTierFromTotal(tiers, totalDollars){
   return {tier: last, spend: totalDollars / (1 + last.retailPct)};
 }
 
+/* Real, platform-enforced monthly minimum in DOLLARS for a CPM/CPV product
+   (or an already-built cpmLine, since those spread the product's own
+   fields directly onto themselves) - straight from Sean's rate card via
+   minMonthlyImpressions/minMonthlyViews on CPM_PRODUCTS. Shared by
+   computeDigitalPlanMulti's own minimum-enforcement pass below AND by the
+   manual "add another tactic" flow (see addManualDigitalTactic), so both
+   places agree on what a tactic actually needs to run. Returns null when
+   there's no minimum on file yet - nothing to enforce. */
+function minDollarsFor(product){
+  if (product.minMonthlyViews != null) return product.minMonthlyViews * product.retailCPV;
+  if (product.minMonthlyImpressions != null) return (product.minMonthlyImpressions / 1000) * product.retailCPM;
+  return null;
+}
+
+/* Same idea as minDollarsFor above, but for FEE-based tactics (SEM/Social/
+   TikTok/PMax), which are quoted as one all-in monthly TOTAL (ad spend +
+   management fee) rather than priced off impressions. Only SEM has a real,
+   rate-card-documented minimum AD SPEND on file right now (SEM_MIN_SPEND,
+   $500/mo) - extend FEE_MIN_SPEND_BY_KEY if Social/TikTok/PMax ever get a
+   documented floor too. Converts that minimum spend into the equivalent
+   minimum TOTAL dollars (spend + spend*fee%) at whichever tier the minimum
+   spend itself falls into, so it's directly comparable to a line's
+   allocated `dollars`. Shared by MINIMUM_ENFORCEMENT below and by the
+   manual "add another tactic" flow, same pattern as minDollarsFor. */
+const FEE_MIN_SPEND_BY_KEY = { sem: { minSpend: SEM_MIN_SPEND, tiers: SEM_TIERS } };
+function minDollarsForFee(key){
+  const cfg = FEE_MIN_SPEND_BY_KEY[key];
+  if (!cfg) return null;
+  const tier = pickTier(cfg.tiers, cfg.minSpend);
+  return cfg.minSpend * (1 + tier.retailPct);
+}
+
 function computeDigitalPlanMulti(objInputs){
   const budget = parseFloat(objInputs.budget) || 0;
   if (budget <= 0 || !objInputs.campaignGoals.length) return null;
@@ -5531,15 +6049,35 @@ function computeDigitalPlanMulti(objInputs){
   const industryText = (objInputs.industry + " " + objInputs.category + " " + objInputs.customerProfile).toLowerCase();
   const isAlt = objInputs.industry === "Cannabis & Headshops" || /gambling|casino|sportsbook|cbd|vape/.test(industryText);
 
-  /* House rule: only ever recommend one generic-reach Display product per
-     objective. Dominant for a healthy budget ($1,000+), Basic Blend below
-     that. This does NOT touch Device ID or Lookback — those are
-     purpose-built targeting products for Conquest/Retention, not "more
-     Display", so they're left alone. */
-  const DISPLAY_CONSOLIDATION_THRESHOLD = 1000;
-  const consolidatedDisplayKey = budget >= DISPLAY_CONSOLIDATION_THRESHOLD ? "display_dominant" : "display_basic";
+  /* Customer-profile-based tactic guidance (see CUSTOMER_PROFILE_RULES) —
+     scoped to just the free-text "Interests & behaviors" field, not the
+     industry/category text, so an industry name never accidentally
+     triggers a profile match. Returns the CUSTOMER_PROFILE_RULES entries
+     whose keywords hit this text and whose stage matches the given goal. */
+  const profileTextLower = (typeof objInputs.customerProfile === "string" ? objInputs.customerProfile : "").toLowerCase();
+  function matchedProfileRulesForGoal(goalId){
+    if (!profileTextLower) return [];
+    return CUSTOMER_PROFILE_RULES.filter(rule => rule.stage === goalId && rule.keywords.some(kw => profileTextLower.includes(kw)));
+  }
+
+  /* House rule: within a tiered product family (Display, CTV/Streaming TV,
+     Streaming Audio - see TIERED_PRODUCT_FAMILIES), only ever recommend
+     ONE tier at a time, and let it be the richest one this objective's
+     total budget unlocks. Generalizes the original "Dominant Display for
+     $1,000+, Basic Blend below that" rule to every family. This does NOT
+     touch Device ID, Lookback, Microproximity, etc. — those are
+     purpose-built targeting products for Conquest/Retention, not part of
+     any "bigger reach" tier ladder, so they're left alone. */
+  const digitalLevelCeiling = digitalBudgetLevelCeiling(budget);
   function resolveKey(k){
-    return (k === "display_basic" || k === "display_dominant") ? consolidatedDisplayKey : k;
+    const family = TIERED_KEY_TO_FAMILY[k];
+    if (!family) return k;
+    let best = null;
+    TIERED_PRODUCT_FAMILIES[family].forEach(memberKey => {
+      const product = CPM_PRODUCTS.find(p => p.key === memberKey);
+      if (product && product.level <= digitalLevelCeiling) best = memberKey;
+    });
+    return best || TIERED_PRODUCT_FAMILIES[family][0];
   }
 
   /* House rule: video-category tactics (Connected TV, Streaming TV,
@@ -5550,7 +6088,15 @@ function computeDigitalPlanMulti(objInputs){
      affected by this gate. */
   const VIDEO_BUDGET_THRESHOLD = 5000;
   function isVideoTactic(product){
-    return !!product && (product.tactic === "Video" || product.tactic === "Video Pre-roll");
+    if (!product) return false;
+    if (product.tactic === "Video" || product.tactic === "Video Pre-roll") return true;
+    if (product.tactic === "Live Sports") return true; // all Live Sports products are Streaming TV video
+    // Amazon's suite mixes a plain display product (amazon_display) in with
+    // several CTV/Streaming TV products - only the latter are video/CTV-style
+    // and should respect the video budget gate, so key on "ctv" rather than
+    // gating the whole "Amazon" tactic category.
+    if (product.tactic === "Amazon" && /ctv/i.test(product.key)) return true;
+    return false;
   }
 
   /* House rule: every SEO package carries a real 6-month minimum
@@ -5570,27 +6116,99 @@ function computeDigitalPlanMulti(objInputs){
   const seoEligible = objectiveFlightMonths == null || objectiveFlightMonths >= SEO_MIN_FLIGHT_MONTHS;
   let seoExcludedForFlightLength = false;
 
-  const perGoalBudget = budget / objInputs.campaignGoals.length;
+  /* By default every selected goal gets an even share of this objective's
+     budget. A rep can instead weight the funnel per goal (e.g. 30%
+     awareness / 40% conversion / 20% intent / 10% retention on the SAME
+     objective) via objInputs.goalPcts, a {goalId: pct} map read straight
+     from the per-goal sliders - if it's missing, malformed, or its
+     selected-goal pcts sum to 0, this falls back to the even split so
+     nothing breaks for callers (including this file's own test harnesses)
+     that don't pass it. */
+  const goalPcts = objInputs.goalPcts;
+  const goalPctSum = (goalPcts && typeof goalPcts === 'object')
+    ? objInputs.campaignGoals.reduce((s,g) => s + (parseFloat(goalPcts[g]) || 0), 0)
+    : 0;
+  function goalBudgetShare(goalId){
+    if (goalPctSum > 0.0001) return (parseFloat(goalPcts[goalId]) || 0) / goalPctSum;
+    return 1 / objInputs.campaignGoals.length;
+  }
+
   const cpmTotals = {};
   const feeTotals = {};
   const stageLabels = [];
+
+  /* Certain tactics are guaranteed a spot regardless of the dynamic
+     tactic-count cap below, no matter how small their dollar share ends up
+     — SEM for "Drive conversions/leads" is the clearest case (per Sean: SEM
+     is the most direct driver of conversion, so it should show at some
+     level 100% of the time this goal is selected), and now also every
+     tactic pulled in by a CUSTOMER_PROFILE_RULES match (per Sean: those
+     should auto-add to the mix, not just get suggested). Populated below
+     as each goal's picks are built. */
+  const requiredFeeKeys = new Set();
+  const requiredCpmKeys = new Set();
 
   objInputs.campaignGoals.forEach(goalId => {
     const stage = FUNNEL_STAGES[goalId];
     if (!stage) return;
     stageLabels.push(stage.label);
-    const cpmPicks = stage.cpmKeys.map(k => {
-      const resolved = resolveKey(k);
-      if (isAlt){ const altKey = ALT_KEY_MAP[resolved]; return altKey ? ALT_CPM_PRODUCTS.find(p => p.key === altKey) : null; }
-      return CPM_PRODUCTS.find(p => p.key === resolved);
-    }).filter(Boolean).filter((p,i,arr) => arr.findIndex(x=>x.key===p.key)===i)
-      .filter(p => budget >= VIDEO_BUDGET_THRESHOLD || !isVideoTactic(p));
+    if (stage.requiredFeeKeys) stage.requiredFeeKeys.forEach(k => requiredFeeKeys.add(k));
+    const perGoalBudget = budget * goalBudgetShare(goalId);
 
-    const feeKeys = stage.feeKeys.filter(k => {
+    /* Customer-profile guidance blends its matched tactics in as extra
+       candidates for this same goal, flowing through the exact same
+       resolveKey/alt-network/video-threshold pipeline as every other
+       tactic — so a profile match still respects budget-tier gating (e.g.
+       Streaming Audio's "Behavioral" tier still only shows once the
+       objective's budget actually unlocks it) rather than bypassing it. */
+    const matchedProfileRules = matchedProfileRulesForGoal(goalId);
+    const profileCpmKeys = matchedProfileRules.reduce((acc, rule) => acc.concat(rule.resolveCpmKeys ? rule.resolveCpmKeys(profileTextLower) : rule.cpmKeys), []);
+    const profileFeeKeys = matchedProfileRules.reduce((acc, rule) => acc.concat(rule.feeKeys), []);
+
+    const cpmPickMap = {};
+    stage.cpmKeys.map(k => ({k, profileMatch:false})).concat(profileCpmKeys.map(k => ({k, profileMatch:true}))).forEach(({k, profileMatch}) => {
+      const resolved = resolveKey(k);
+      const product = isAlt
+        ? (ALT_KEY_MAP[resolved] ? ALT_CPM_PRODUCTS.find(p => p.key === ALT_KEY_MAP[resolved]) : null)
+        : CPM_PRODUCTS.find(p => p.key === resolved);
+      if (!product) return;
+      if (!cpmPickMap[product.key]) cpmPickMap[product.key] = {product, profileMatch:false};
+      if (profileMatch) cpmPickMap[product.key].profileMatch = true;
+    });
+    const cpmPicks = Object.values(cpmPickMap).map(x => x.product)
+      .filter(p => budget >= VIDEO_BUDGET_THRESHOLD || !isVideoTactic(p));
+    cpmPicks.forEach(p => { if (cpmPickMap[p.key].profileMatch) requiredCpmKeys.add(p.key); });
+
+    // Swap "tiktok" for "social" (Facebook/Instagram) wherever this stage
+    // lists it, unless the objective's own age target is one of the young-
+    // skewing brackets TikTok is actually appropriate for (see
+    // socialFeeKeyForAge above). Profile-matched fee keys are left alone -
+    // those come from free-text keyword matches (e.g. the Gen Z rule),
+    // which already make their own explicit tiktok/social call.
+    const ageTarget = objInputs.objective && objInputs.objective.ageTarget;
+    const resolvedStageFeeKeys = stage.feeKeys.map(k => k === "tiktok" ? socialFeeKeyForAge(ageTarget) : k);
+
+    const feeKeyMap = {};
+    resolvedStageFeeKeys.map(k => ({k, profileMatch:false})).concat(profileFeeKeys.map(k => ({k, profileMatch:true}))).forEach(({k, profileMatch}) => {
+      if (!feeKeyMap[k]) feeKeyMap[k] = {profileMatch:false};
+      if (profileMatch) feeKeyMap[k].profileMatch = true;
+    });
+    const feeKeys = Object.keys(feeKeyMap).filter(k => {
       if (k === "seo" && !seoEligible){ seoExcludedForFlightLength = true; return false; }
       return true;
     });
-    const feeShareTotal = feeKeys.length ? 0.4 : 0;
+    feeKeys.forEach(k => { if (feeKeyMap[k].profileMatch) requiredFeeKeys.add(k); });
+
+    /* House rule: a flat 60/40 CPM/fee split made sense when every goal had
+       roughly as many fee options as CPM ones, but it quietly starved goals
+       like Conversion (four fee tactics — SEM/PMax/SEO/Social — competing
+       for just 40% of the budget, split four ways, against one CPM tactic
+       getting the other 60% alone) — which is exactly why Display used to
+       crowd out SEM/SEO for lead-gen. The floor stays 40% so goals where
+       CPM options dominate (Awareness, Conquest) are unaffected, but when
+       fee options are the majority of a goal's candidate tactics, they now
+       get a proportional share instead of being capped at 40% regardless. */
+    const feeShareTotal = feeKeys.length ? Math.max(0.4, feeKeys.length / (feeKeys.length + cpmPicks.length)) : 0;
     const cpmShareTotal = 1 - feeShareTotal;
     const cpmDollarsEach = cpmPicks.length ? (perGoalBudget * cpmShareTotal) / cpmPicks.length : 0;
     const feeDollarsEach = feeKeys.length ? (perGoalBudget * feeShareTotal) / feeKeys.length : 0;
@@ -5612,12 +6230,22 @@ function computeDigitalPlanMulti(objInputs){
      happen BEFORE fee tiers/SEO packages get matched to a dollar amount —
      otherwise a tactic that gets topped up by redistribution would still
      be priced at its pre-redistribution tier. */
-  const FEE_DISPLAY_LABELS = {sem:"SEM (Google/Microsoft Ads)", social:"Facebook & Instagram Management", seo:"SEO Package", email:"Email"};
+  const FEE_DISPLAY_LABELS = {sem:"SEM (Google/Microsoft Ads)", social:"Facebook & Instagram Management", seo:"SEO Package", email:"Email", tiktok:"TikTok Management", pmax:"Google Performance Max"};
   const rawLines = Object.keys(cpmTotals).map(key => ({
     kind:'cpm', key: key, dollars: cpmTotals[key].dollars, product: cpmTotals[key].product, sourceGoals: Array.from(cpmTotals[key].goals)
   })).concat(Object.keys(feeTotals).map(key => ({
     kind:'fee', key: key, dollars: feeTotals[key].dollars, sourceGoals: Array.from(feeTotals[key].goals)
   }))).sort((a,b) => b.dollars - a.dollars);
+
+  /* Required lines (see requiredFeeKeys/requiredCpmKeys above) are pulled
+     out of the ranked pool entirely, so they always survive - the dynamic
+     cap below only decides how many of the REMAINING candidates get to
+     join them. */
+  function isRequiredLine(x){
+    return (x.kind === 'fee' && requiredFeeKeys.has(x.key)) || (x.kind === 'cpm' && requiredCpmKeys.has(x.key));
+  }
+  const requiredLines = rawLines.filter(isRequiredLine);
+  const rankedLines = rawLines.filter(x => !isRequiredLine(x));
 
   /* Dynamic cap: how many different tactics this objective is allowed to
      show, and the minimum $ a kept tactic must clear, both come from
@@ -5630,25 +6258,35 @@ function computeDigitalPlanMulti(objInputs){
      was needlessly conservative on tightly-targeted local ones. */
   const scope = tacticScopeSettings(objInputs.objective, objInputs.industry);
 
-  /* Start at the scope's max tactic count and, if the smallest kept line
-     would still fall below the scope's minimum $/tactic after dollars get
-     redistributed from excluded tactics, drop one more tactic and retry.
-     Dropping the smallest raises everyone else's share, so this converges
-     quickly and never needs more than rawLines.length passes. */
-  let cap = Math.min(scope.maxTactics, rawLines.length);
+  /* Start at the scope's max tactic count (minus however many required
+     lines already have a guaranteed seat) and, if the smallest kept RANKED
+     line would still fall below the scope's minimum $/tactic after dollars
+     get redistributed from excluded tactics, drop one more tactic and
+     retry. Dropping the smallest raises everyone else's share, so this
+     converges quickly and never needs more than rankedLines.length passes. */
+  /* The cap must never shrink to the point that NOTHING is kept - the old
+     flat cap enforced this with a "cap > 1" floor (always keep at least the
+     single largest tactic). With required lines pulled out separately,
+     that floor only needs to apply to the ranked pool when there are no
+     required lines to fall back on; when at least one required line
+     exists, it's fine for the ranked pool to shrink all the way to zero. */
+  const minRankedCap = (requiredLines.length > 0 || rankedLines.length === 0) ? 0 : 1;
+  let rankedCap = Math.min(Math.max(scope.maxTactics - requiredLines.length, minRankedCap), rankedLines.length);
   let kept, excluded, keptTotal, excludedTotal, scaleFactor;
-  while (cap > 1){
-    kept = rawLines.slice(0, cap);
-    excluded = rawLines.slice(cap);
+  while (rankedCap > minRankedCap){
+    const rankedKept = rankedLines.slice(0, rankedCap);
+    const rankedExcluded = rankedLines.slice(rankedCap);
+    kept = requiredLines.concat(rankedKept);
+    excluded = rankedExcluded;
     keptTotal = kept.reduce((s, x) => s + x.dollars, 0);
     excludedTotal = excluded.reduce((s, x) => s + x.dollars, 0);
     scaleFactor = (keptTotal > 0 && excludedTotal > 0) ? (keptTotal + excludedTotal) / keptTotal : 1;
-    const smallestKeptAfterRedistribution = kept.length ? kept[kept.length - 1].dollars * scaleFactor : 0;
-    if (smallestKeptAfterRedistribution >= scope.minDollarsPerTactic) break;
-    cap -= 1;
+    const smallestRankedKeptAfterRedistribution = rankedKept.length ? rankedKept[rankedKept.length - 1].dollars * scaleFactor : Infinity;
+    if (smallestRankedKeptAfterRedistribution >= scope.minDollarsPerTactic) break;
+    rankedCap -= 1;
   }
-  kept = rawLines.slice(0, cap);
-  excluded = rawLines.slice(cap);
+  kept = requiredLines.concat(rankedLines.slice(0, rankedCap));
+  excluded = rankedLines.slice(rankedCap);
 
   /* House rule: the cap only limits how many DIFFERENT tactics show up on
      the line-item table — it must never quietly shrink the total
@@ -5662,6 +6300,61 @@ function computeDigitalPlanMulti(objInputs){
     scaleFactor = (keptTotal + excludedTotal) / keptTotal;
     kept.forEach(x => { x.dollars = x.dollars * scaleFactor; });
   }
+
+  /* MINIMUM_ENFORCEMENT: every CPM tactic carries a real, platform-enforced
+     monthly minimum (minMonthlyImpressions / minMonthlyViews on
+     CPM_PRODUCTS — straight from Sean's rate card), and SEM carries a real
+     minimum monthly AD SPEND ($500/mo, SEM_MIN_SPEND — straight from
+     Sean's SEM rate card) — neither is a modeling nicety, the platform/
+     agency genuinely won't run either below its own floor. A tactic can
+     pass the tactic-count cap above and still land here with too few
+     dollars to clear its own minimum — more candidates sharing one goal's
+     budget, or several required lines (SEM, profile-matched tactics)
+     competing for a small slice, both dilute individual shares — so after
+     the cap redistribution settles, drop the worst violator, redistribute
+     its dollars into what's left, and recheck; repeat until every
+     surviving line can actually deliver its minimum. This can drop a
+     "required" line — required only guarantees a seat when the budget can
+     support it, never a promise to show something that can't actually be
+     delivered. (minDollarsFor/minDollarsForFee are shared top-level
+     functions, also used by the manual add-tactic flow.) */
+  function enforcedMinDollars(x){
+    if (x.kind === 'cpm') return minDollarsFor(x.product);
+    if (x.kind === 'fee') return minDollarsForFee(x.key);
+    return null;
+  }
+  function enforcedLineName(x){
+    return x.kind === 'cpm' ? x.product.product : FEE_DISPLAY_LABELS[x.key];
+  }
+  const minimumExcluded = [];
+  while (true){
+    const enforceableKept = kept.filter(x => enforcedMinDollars(x) != null);
+    if (!enforceableKept.length) break;
+    const violators = enforceableKept.filter(x => {
+      const need = enforcedMinDollars(x);
+      return x.dollars < need - 0.005; // epsilon for float rounding
+    });
+    if (!violators.length) break;
+    // Drop the single worst violator (furthest below its own minimum, as a
+    // ratio) per pass - dropping one at a time keeps the redistribution
+    // honest, since each pass only raises everyone else's dollars, never
+    // lowers them, so this always converges.
+    violators.sort((a,b) => (a.dollars / enforcedMinDollars(a)) - (b.dollars / enforcedMinDollars(b)));
+    const worst = violators[0];
+    kept = kept.filter(x => x !== worst);
+    minimumExcluded.push(worst);
+    const kT = kept.reduce((s,x) => s + x.dollars, 0);
+    if (kT > 0){
+      const sf = (kT + worst.dollars) / kT;
+      kept.forEach(x => { x.dollars = x.dollars * sf; });
+    }
+  }
+  // If dropping minimum-violators emptied the mix entirely, there was
+  // nothing left to absorb their dollars into - flag it plainly rather
+  // than silently shorting the objective's total investment.
+  const minimumEnforcementNote = (minimumExcluded.length && kept.length === 0)
+    ? `This objective's budget isn't large enough to clear the real monthly minimum for any tactic in this goal's mix (${minimumExcluded.map(enforcedLineName).join(", ")}) — raise the budget, widen the objective's scope, or split the spend across fewer goals.`
+    : null;
 
   /* SEO packages and the email blast are fixed-menu products - only real,
      named catalog prices exist, so they can't be scaled to match whatever
@@ -5711,11 +6404,21 @@ function computeDigitalPlanMulti(objInputs){
     }
   }
 
-  const cpmLines = kept.filter(x => x.kind === 'cpm').map(x => Object.assign({}, x.product, {
-    monthlyDollars: x.dollars,
-    impressions: Math.round((x.dollars / x.product.retailCPM) * 1000),
-    sourceGoals: x.sourceGoals
-  }));
+  const cpmLines = kept.filter(x => x.kind === 'cpm').map(x => {
+    const usesCPV = x.product.retailCPV != null;
+    const units = usesCPV ? Math.round(x.dollars / x.product.retailCPV) : Math.round((x.dollars / x.product.retailCPM) * 1000);
+    return Object.assign({}, x.product, {
+      monthlyDollars: x.dollars,
+      impressions: units,
+      impressionsLabel: units.toLocaleString() + (usesCPV ? ' completed views' : ' impressions'),
+      sourceGoals: x.sourceGoals,
+      // Guaranteed lines (SEM for Conversion, profile-matched tactics) -
+      // protected from the manual "fund this from the existing budget"
+      // shrink-to-make-room feature (see addManualDigitalTactic), the same
+      // way they're protected from the tactic-count cap above.
+      protected: requiredCpmKeys.has(x.key)
+    });
+  });
 
   const finalFeeLines = kept.filter(x => x.kind === 'fee').map(x => {
     const dollars = x.dollars;
@@ -5728,12 +6431,27 @@ function computeDigitalPlanMulti(objInputs){
       const solved = solveFeeTierFromTotal(SOCIAL_TIERS, dollars);
       return {type:"social", label:"Facebook & Instagram Management", adSpend:solved.spend, feePct:solved.tier.retailPct, totalCost:dollars, setupFee:SOCIAL_SETUP_FEE, campaigns:solved.tier.campaigns, note:"90-day minimum. One-time setup fee shown separately below, not in this monthly figure.", sourceGoals: sourceGoals};
     }
+    if (x.key === "tiktok"){
+      const solved = solveFeeTierFromTotal(TIKTOK_TIERS, dollars);
+      return {type:"tiktok", label:"TikTok Management", adSpend:solved.spend, feePct:solved.tier.retailPct, totalCost:dollars, note:"90-day minimum commitment.", sourceGoals: sourceGoals};
+    }
+    if (x.key === "pmax"){
+      // Flat 35% fee - no tier table to solve against, just back out ad
+      // spend from the combined (spend + fee) dollars this line was allocated.
+      const spend = dollars / (1 + GOOGLE_PMAX_FEE_PCT);
+      return {type:"pmax", label:"Google Performance Max", adSpend:spend, feePct:GOOGLE_PMAX_FEE_PCT, totalCost:dollars, note:"90-day minimum commitment. $" + GOOGLE_PMAX_MIN_SPEND.toLocaleString() + "/mo minimum spend.", sourceGoals: sourceGoals};
+    }
     if (x.key === "seo" || x.key === "email"){
       const fx = fixedResolved.find(f => f.key === x.key);
       return {type:x.key, label:fx.label, totalCost:fx.price, note:fx.note, sourceGoals: sourceGoals};
     }
     return null;
-  }).filter(Boolean);
+  }).filter(Boolean).map(line => Object.assign(line, {
+    // Same protection concept as cpmLines above - SEM for Conversion, or any
+    // profile-matched fee tactic, stays off-limits to the manual
+    // fund-from-budget shrink feature.
+    protected: requiredFeeKeys.has(line.type)
+  }));
 
   const oneTimeFees = finalFeeLines.filter(l => l.setupFee).map(l => ({label: l.label + " setup fee", amount: l.setupFee}));
   const oneTimeFeesTotal = oneTimeFees.reduce((s, f) => s + f.amount, 0);
@@ -5742,6 +6460,8 @@ function computeDigitalPlanMulti(objInputs){
     stageLabels: stageLabels, isAlt: isAlt, cpmLines: cpmLines, feeLines: finalFeeLines,
     excludedCount: excluded.length,
     excludedNames: excluded.map(x => x.kind==='cpm' ? x.product.product : (FEE_DISPLAY_LABELS[x.key] || x.key)),
+    minimumExcludedNames: minimumExcluded.map(enforcedLineName),
+    minimumEnforcementNote: minimumEnforcementNote,
     scope: scope,
     seoExcludedForFlightLength: seoExcludedForFlightLength,
     objectiveFlightMonths: objectiveFlightMonths,
@@ -5752,10 +6472,11 @@ function computeDigitalPlanMulti(objInputs){
 }
 
 function computeDigitalPlanForObjective(inputs, objective){
-  const objBudget = (parseFloat(inputs.budget) || 0) * (objective.budgetPct / 100);
+  const objBudget = parseFloat(stripCommas(objective.budgetDollars)) || 0;
   const objInputs = Object.assign({}, inputs, {
     budget: objBudget,
     campaignGoals: objective.goals,
+    goalPcts: objective.goalPcts,
     customerProfile: (objective.interests && objective.interests.trim()) ? objective.interests : inputs.customerProfile,
     objective: objective
   });
@@ -5771,16 +6492,27 @@ function slugifyForId(s){
   return (s || '').toString().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
+/* Split into two pieces so the manual "add another tactic" flow can
+   re-render JUST the auto-recommended mix (after shrinking it to make room
+   for a manual add — see addManualDigitalTactic's "fund this from the
+   existing budget" option) without touching the manual-add controls or
+   any tactics a rep already added by hand, which live in a sibling
+   container that this never re-renders. */
 function renderDigitalPlanMulti(plan, objective, industry, objIndex){
   if (!plan) return '<div class="note-box">This objective needs at least one goal selected and a share of the budget greater than $0.</div>';
+  return '<div id="autoMixBlock_' + objIndex + '">' + renderDigitalAutoMixHtml(plan, objective, industry, objIndex) + '</div>'
+    + renderManualAddControlsHtml(objIndex);
+}
+
+function renderDigitalAutoMixHtml(plan, objective, industry, objIndex){
   let html = '<div class="note-box" style="margin-bottom:12px;"><strong>' + plan.stageLabels.join(" + ") + '</strong>' + (plan.isAlt ? ' - Alt Network pricing applied for this industry.' : '') + '</div>';
 
   const flightMonths = plan.objectiveFlightMonths != null ? plan.objectiveFlightMonths : monthsBetweenDates(objective.flightStart, objective.flightEnd);
 
   const allTactics = plan.cpmLines.map(l => ({
-    name: l.tactic + ' - ' + l.product, tag: funnelTag(l.sourceGoals), monthlyCost: l.monthlyDollars, extra: l.impressions.toLocaleString() + ' impressions', ref: l
+    name: l.tactic + ' - ' + l.product, tag: funnelTag(l.sourceGoals), monthlyCost: l.monthlyDollars, extra: l.impressionsLabel, ref: l
   })).concat(plan.feeLines.map(l => ({
-    name: l.label, tag: funnelTag(l.sourceGoals), monthlyCost: l.totalCost, extra: (l.type === "sem" || l.type === "social") ? ('$' + Math.round(l.adSpend).toLocaleString() + ' spend + ' + Math.round(l.feePct*100) + '% fee' + (l.setupFee ? (' + $' + l.setupFee + ' one-time setup') : '')) : '-', ref: l
+    name: l.label, tag: funnelTag(l.sourceGoals), monthlyCost: l.totalCost, extra: (l.type === "sem" || l.type === "social" || l.type === "tiktok" || l.type === "pmax") ? ('$' + Math.round(l.adSpend).toLocaleString() + ' spend + ' + Math.round(l.feePct*100) + '% fee' + (l.setupFee ? (' + $' + l.setupFee + ' one-time setup') : '')) : '-', ref: l
   })));
 
   const totalMonthly = allTactics.reduce((s,t) => s + t.monthlyCost, 0);
@@ -5843,6 +6575,13 @@ function renderDigitalPlanMulti(plan, objective, industry, objIndex){
     html += '<div class="data-note">Showing the top ' + allTactics.length + ' tactics for this objective; ' + plan.excludedCount + ' additional lower-priority tactic' + (plan.excludedCount>1?'s':'') + ' (' + plan.excludedNames.join(", ") + ') were left out to keep spend meaningful per line item given this objective\'s geographic scope, audience breadth, and industry — their share of the budget was redistributed into the tactics shown below, so the total still matches what was entered.</div>';
   }
 
+  if (plan.minimumExcludedNames && plan.minimumExcludedNames.length){
+    html += '<div class="data-note">' + plan.minimumExcludedNames.join(", ") + (plan.minimumExcludedNames.length>1?' were':' was') + ' left out of this objective — this budget can\'t clear ' + (plan.minimumExcludedNames.length>1?'their':'its') + ' real monthly minimum spend on the platform, so it wasn\'t deliverable at this size. Its share of the budget was redistributed into the tactics shown below.</div>';
+  }
+  if (plan.minimumEnforcementNote){
+    html += '<div class="data-note" style="color:#b00020;">' + plan.minimumEnforcementNote + '</div>';
+  }
+
   if (allTactics.length){
     html += '<p style="font-weight:600; color:var(--navy); margin:16px 0 8px;">What each tactic does</p>';
     allTactics.forEach(t => {
@@ -5872,24 +6611,35 @@ function renderDigitalPlanMulti(plan, objective, industry, objIndex){
     });
   }
 
-  /* Manual add-on: lets a rep hand-pick any product from the full catalog
-     for this objective, on top of whatever the algorithm picked — for
-     client-specific requests or products the auto-pick didn't surface.
-     Deliberately kept separate from allTactics/the mix chart above (which
-     represent the algorithm's own budget split); this is an independent
-     add-on the rep is layering in, priced on its own and added straight to
-     the Official Plan like anything else. */
-  html += '<div style="margin-top:16px; padding-top:12px; border-top:1px dashed var(--border);">'
+  return html;
+}
+
+/* Manual add-on: lets a rep hand-pick any product from the full catalog
+   for this objective, on top of whatever the algorithm picked — for
+   client-specific requests or products the auto-pick didn't surface.
+   Deliberately kept separate from allTactics/the mix chart above (which
+   represent the algorithm's own budget split); by default this is an
+   independent add-on the rep is layering in, priced on its own and added
+   straight to the Official Plan like anything else. The "Fund this from
+   the existing budget" checkbox (off by default, so nothing changes for
+   reps who don't touch it) switches addManualDigitalTactic into shrinking
+   the auto-mix (never below any tactic's own real minimum, never touching
+   a protected/required line) to make room instead of adding on top - see
+   addManualDigitalTactic. Rendered once per objective and never
+   re-rendered afterward, so tactics already added by hand here survive a
+   fund-from-budget shrink of the auto-mix above (which only replaces
+   #autoMixBlock_N, a sibling of this whole block). */
+function renderManualAddControlsHtml(objIndex){
+  return '<div style="margin-top:16px; padding-top:12px; border-top:1px dashed var(--border);">'
     + '<p style="font-weight:600; color:var(--navy); margin-bottom:8px; font-size:13px;">Add another digital tactic</p>'
     + '<div class="row2" style="margin-bottom:8px;">'
     + '<div class="field" style="margin-bottom:0;"><label>Product</label><select id="manualTacticSelect_' + objIndex + '" onchange="onManualTacticChange(' + objIndex + ')">' + renderManualTacticSelectOptions() + '</select></div>'
     + '<div class="field" style="margin-bottom:0;" id="manualTacticBudgetWrap_' + objIndex + '"><label id="manualTacticBudgetLabel_' + objIndex + '">Monthly budget</label><input type="text" inputmode="numeric" id="manualTacticBudget_' + objIndex + '" placeholder="e.g. 500" oninput="formatNumberInput(this)"></div>'
     + '</div>'
+    + '<label class="checkbox-row" style="margin-bottom:8px;"><input type="checkbox" id="manualTacticFundFromBudget_' + objIndex + '"> Fund this from the existing budget <span class="hint">Shrinks lower-priority tactics in the mix above to make room, without dropping any of them below their real minimum. Leave unchecked to add this on top of the budget instead.</span></label>'
     + '<button type="button" class="use-btn" style="margin-left:0;" onclick="addManualDigitalTactic(' + objIndex + ')">+ Add Tactic</button>'
     + '<div id="manualTacticsContainer_' + objIndex + '" style="margin-top:8px;"></div>'
     + '</div>';
-
-  return html;
 }
 
 async function callClaudeDigital(inputs, objectivesWithPlans){
@@ -5899,7 +6649,7 @@ async function callClaudeDigital(inputs, objectivesWithPlans){
     if (!plan) return label + ": no valid plan (missing goals or budget)";
     const genderText = op.objective.gender === "male" ? "male-skewing" : op.objective.gender === "female" ? "female-skewing" : "balanced-gender";
     const targetDesc = "age " + (op.objective.ageTarget || "35-54") + ", " + genderText + (op.objective.interests ? (", interests: " + op.objective.interests) : "") + ", " + geoScopeLabel(op.objective.geoScope) + " scope" + (op.objective.geography ? (" (" + op.objective.geography + ")") : "");
-    return label + " (" + Math.round(op.objective.budgetPct) + "% of digital budget, targeting: " + targetDesc + "): " + plan.stageLabels.join(" + ") + " - " +
+    return label + " ($" + Math.round(parseFloat(op.objective.budgetDollars) || 0).toLocaleString() + "/mo, targeting: " + targetDesc + "): " + plan.stageLabels.join(" + ") + " - " +
       plan.cpmLines.map(l => l.tactic + " (" + l.product + ")").join(", ") +
       (plan.feeLines.length ? (", plus " + plan.feeLines.map(l=>l.label).join(", ")) : "");
   }).join("\n");
@@ -5942,6 +6692,7 @@ async function generateDigital(){
   const objectivesWithPlans = inputs.objectives.map(objective => ({
     objective: objective, plan: computeDigitalPlanForObjective(inputs, objective)
   }));
+  lastDigitalObjectivesWithPlans = objectivesWithPlans;
 
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Generating...';
 
@@ -5953,7 +6704,7 @@ async function generateDigital(){
     const customerTarget = demoText + interestsText;
     const targetGeography = geoScopeLabel(op.objective.geoScope) + ((op.objective.geography && op.objective.geography.trim()) ? (" — " + op.objective.geography) : "");
     return '<div class="output-section">'
-      + '<h3>' + label + ' <span style="font-weight:400; color:var(--text-muted); font-size:12.5px; text-transform:none; letter-spacing:0;">(' + Math.round(op.objective.budgetPct) + '% of budget)</span></h3>'
+      + '<h3>' + label + ' <span style="font-weight:400; color:var(--text-muted); font-size:12.5px; text-transform:none; letter-spacing:0;">($' + Math.round(parseFloat(op.objective.budgetDollars) || 0).toLocaleString() + '/mo)</span></h3>'
       + '<div class="note-box" style="margin-bottom:12px;"><strong>Customer Target:</strong> ' + customerTarget + '<br><strong>Target Geography:</strong> ' + targetGeography + '</div>'
       + renderDigitalPlanMulti(op.plan, op.objective, inputs.industry, i)
       + '</div>';
