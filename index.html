@@ -1596,6 +1596,19 @@ const FUNNEL_STAGES = {
     // SEM/SEO/Social instead of one tactic crowding the rest out.
     requiredFeeKeys:["sem"],
     note:"High-intent tactics built to close: paid search (SEM), organic search, and lead-gen social."
+  },
+  // A separate goal from Conquest per Sean, even though both are geo-fence
+  // use cases - Conquest stays scoped to competitor locations (and keeps its
+  // Facebook Device ID + SEM tactics untouched); Foot Traffic is its own
+  // checkbox for driving/measuring walk-in visits to the CLIENT's own (or a
+  // nearby high-traffic) location, using the three geo-fence products Sean
+  // named: Device ID, Microproximity, and Lookback. No feeKeys - this is a
+  // pure geo-fencing play, not paired with a search/social product today.
+  foot_traffic: {
+    label:"Increase foot traffic / walk-ins",
+    cpmKeys:["display_deviceid","display_microprox","display_lookback"],
+    feeKeys:[],
+    note:"Geo-fencing the client's own location (or nearby high-traffic areas) and Lookback retargeting to drive and measure walk-in visits."
   }
 };
 
@@ -5358,6 +5371,7 @@ const GOAL_LABELS = {
   awareness: "Increase awareness",
   interest: "Drive interest in specific products/services",
   conquest: "Compete against specific competitors",
+  foot_traffic: "Increase foot traffic / walk-ins",
   retention: "Increase customer retention",
   conversion: "Drive conversions / leads"
 };
@@ -5366,6 +5380,7 @@ const FUNNEL_SHORT_LABELS = {
   awareness: "Awareness",
   interest: "Interest",
   conquest: "Conquest",
+  foot_traffic: "Foot Traffic",
   retention: "Retention",
   conversion: "Conversion"
 };
@@ -5422,6 +5437,19 @@ function readObjectivesFromDOM(){
       // commas stripped, so downstream consumers can parseFloat it directly.
       budgetDollars: stripCommas(block.querySelector('.obj-budget-dollars').value),
       goals: Array.from(block.querySelectorAll('.obj-goal-check:checked')).map(el => el.value),
+      // Desired message type (Video/Display, either/both/neither) - steers
+      // which CPM tactics get offered (see passesMessageTypeFilter). Website
+      // improvement is a standalone flag, not a goal - it doesn't affect the
+      // goal grid or goal-pct sliders, just adds a referral note.
+      messageTypes: (function(){
+        const types = [];
+        const videoEl = block.querySelector('.obj-message-video');
+        const displayEl = block.querySelector('.obj-message-display');
+        if (videoEl && videoEl.checked) types.push('video');
+        if (displayEl && displayEl.checked) types.push('display');
+        return types;
+      })(),
+      websiteImprovement: !!(block.querySelector('.obj-website-improvement') && block.querySelector('.obj-website-improvement').checked),
       // Only populated when 2+ goals are checked (sliders only render then)
       // - a single-goal objective has no ambiguity to resolve, and
       // computeDigitalPlanMulti falls back to an even split when this is empty.
@@ -5466,6 +5494,11 @@ function renderObjectivesContainer(existing){
       + '<div class="field" style="margin-bottom:10px;"><label>Goals for this objective</label><div class="goal-grid">'
       + Object.keys(GOAL_LABELS).map(g => '<label class="checkbox-row"><input type="checkbox" class="obj-goal-check" value="' + g + '" ' + (obj.goals.includes(g) ? 'checked' : '') + ' onchange="onGoalCheckChange(' + i + ')"> ' + GOAL_LABELS[g] + '</label>').join('')
       + '</div></div>'
+      + '<div class="field" style="margin-bottom:10px;"><label>Desired message type <span class="hint">Optional — steers Awareness/Interest/Conquest/Foot Traffic tactics toward video, display, or both. Display racks up impressions cost-effectively; video drives stronger brand recall. Leave both unchecked for no restriction.</span></label><div class="goal-grid">'
+      + '<label class="checkbox-row"><input type="checkbox" class="obj-message-video" ' + ((obj.messageTypes||[]).includes('video') ? 'checked' : '') + '> Video</label>'
+      + '<label class="checkbox-row"><input type="checkbox" class="obj-message-display" ' + ((obj.messageTypes||[]).includes('display') ? 'checked' : '') + '> Display</label>'
+      + '</div></div>'
+      + '<div class="field" style="margin-bottom:10px;"><label class="checkbox-row"><input type="checkbox" class="obj-website-improvement" ' + (obj.websiteImprovement ? 'checked' : '') + '> Website improvement <span class="hint">Flags this objective for Max Media\'s web services team — no ad tactics are added for this alone</span></label></div>'
       + '<div id="goalPctSliders_' + i + '">' + renderGoalPctSlidersHtml(i, obj.goals) + '</div>'
       + '<div class="field" style="margin-bottom:0;"><label>Budget for this objective ($/mo) <span class="hint">Runs on this objective\'s own flight dates above, if set</span></label>'
       + '<input type="text" inputmode="numeric" class="obj-budget-dollars" value="' + (obj.budgetDollars && parseFloat(obj.budgetDollars) ? Number(stripCommas(obj.budgetDollars)).toLocaleString() : '') + '" placeholder="e.g. 2,000" oninput="formatNumberInput(this); recalcTotalDigitalBudget();">'
@@ -5498,7 +5531,7 @@ function syncObjectiveGoalPctsFromExisting(existing){
 function addObjective(){
   const existing = readObjectivesFromDOM();
   syncObjectiveGoalPctsFromExisting(existing);
-  existing.push({label:"", ageTarget:"35-54", gender:"balanced", interests:"", geoScope:"city", geography:"", goals:["awareness"], budgetDollars:""});
+  existing.push({label:"", ageTarget:"35-54", gender:"balanced", interests:"", geoScope:"city", geography:"", goals:["awareness"], budgetDollars:"", messageTypes:[], websiteImprovement:false});
   objectiveGoalPcts.push({awareness:100});
   renderObjectivesContainer(existing);
 }
@@ -6099,6 +6132,29 @@ function computeDigitalPlanMulti(objInputs){
     return false;
   }
 
+  /* Optional per-objective "Desired message type" pick (Video / Display,
+     either or both, or neither) - per Sean: display is cost-effective for
+     racking up impressions, video has better brand recall, and neither is
+     categorically "better" so this steers the mix rather than judging it.
+     Reuses isVideoTactic above for the Video side (same definition as the
+     $5,000 video gate - CTV/Streaming TV, YouTube, Video Pre-roll, Live
+     Sports); "Display" means the tactic's own tactic field is literally
+     "Display". Everything else (Native, Streaming Audio, Site/Search
+     Retargeting, DOOH, Amazon Display, Social) is neither, and per Sean
+     stays available no matter what's checked here - this filter only
+     steers the actual Display-vs-Video tradeoff, not the whole catalog.
+     Checking neither (the default) is "no restriction" - full mix stays
+     eligible, same as today. */
+  function passesMessageTypeFilter(product, messageTypes){
+    if (!messageTypes || !messageTypes.length) return true;
+    const isVideo = isVideoTactic(product);
+    const isDisplay = product.tactic === "Display";
+    if (!isVideo && !isDisplay) return true;
+    if (messageTypes.includes("video") && isVideo) return true;
+    if (messageTypes.includes("display") && isDisplay) return true;
+    return false;
+  }
+
   /* House rule: every SEO package carries a real 6-month minimum
      commitment (it's in each package's own description) - but nothing
      used to actually check the objective's flight length before
@@ -6165,26 +6221,14 @@ function computeDigitalPlanMulti(objInputs){
     const profileCpmKeys = matchedProfileRules.reduce((acc, rule) => acc.concat(rule.resolveCpmKeys ? rule.resolveCpmKeys(profileTextLower) : rule.cpmKeys), []);
     const profileFeeKeys = matchedProfileRules.reduce((acc, rule) => acc.concat(rule.feeKeys), []);
 
-    const cpmPickMap = {};
-    stage.cpmKeys.map(k => ({k, profileMatch:false})).concat(profileCpmKeys.map(k => ({k, profileMatch:true}))).forEach(({k, profileMatch}) => {
-      const resolved = resolveKey(k);
-      const product = isAlt
-        ? (ALT_KEY_MAP[resolved] ? ALT_CPM_PRODUCTS.find(p => p.key === ALT_KEY_MAP[resolved]) : null)
-        : CPM_PRODUCTS.find(p => p.key === resolved);
-      if (!product) return;
-      if (!cpmPickMap[product.key]) cpmPickMap[product.key] = {product, profileMatch:false};
-      if (profileMatch) cpmPickMap[product.key].profileMatch = true;
-    });
-    const cpmPicks = Object.values(cpmPickMap).map(x => x.product)
-      .filter(p => budget >= VIDEO_BUDGET_THRESHOLD || !isVideoTactic(p));
-    cpmPicks.forEach(p => { if (cpmPickMap[p.key].profileMatch) requiredCpmKeys.add(p.key); });
-
     // Swap "tiktok" for "social" (Facebook/Instagram) wherever this stage
     // lists it, unless the objective's own age target is one of the young-
     // skewing brackets TikTok is actually appropriate for (see
     // socialFeeKeyForAge above). Profile-matched fee keys are left alone -
     // those come from free-text keyword matches (e.g. the Gen Z rule),
     // which already make their own explicit tiktok/social call.
+    // (Computed before cpmPicks below so the message-type safety fallback
+    // can know whether this goal has any fee tactics to fall back on.)
     const ageTarget = objInputs.objective && objInputs.objective.ageTarget;
     const resolvedStageFeeKeys = stage.feeKeys.map(k => k === "tiktok" ? socialFeeKeyForAge(ageTarget) : k);
 
@@ -6198,6 +6242,36 @@ function computeDigitalPlanMulti(objInputs){
       return true;
     });
     feeKeys.forEach(k => { if (feeKeyMap[k].profileMatch) requiredFeeKeys.add(k); });
+
+    const cpmPickMap = {};
+    stage.cpmKeys.map(k => ({k, profileMatch:false})).concat(profileCpmKeys.map(k => ({k, profileMatch:true}))).forEach(({k, profileMatch}) => {
+      const resolved = resolveKey(k);
+      const product = isAlt
+        ? (ALT_KEY_MAP[resolved] ? ALT_CPM_PRODUCTS.find(p => p.key === ALT_KEY_MAP[resolved]) : null)
+        : CPM_PRODUCTS.find(p => p.key === resolved);
+      if (!product) return;
+      if (!cpmPickMap[product.key]) cpmPickMap[product.key] = {product, profileMatch:false};
+      if (profileMatch) cpmPickMap[product.key].profileMatch = true;
+    });
+    const cpmPicksPreMessageFilter = Object.values(cpmPickMap).map(x => x.product)
+      .filter(p => budget >= VIDEO_BUDGET_THRESHOLD || !isVideoTactic(p));
+    /* Desired message type (Video/Display) steers which of these survive -
+       see passesMessageTypeFilter above. Safety fallback: if this goal has
+       no fee tactics at all (e.g. Foot Traffic, which is CPM-only) AND
+       applying the filter would wipe out every single CPM candidate, skip
+       the filter for this goal rather than silently losing its whole
+       budget share to a message-type mismatch the rep may not have meant
+       to apply this strictly (e.g. picking "Video only" while Foot Traffic
+       is also selected, when Foot Traffic's geo-fence tactics are all
+       Display). Goals that also have fee tactics don't need this fallback
+       - their budget still lands somewhere (the fee tactics) even if every
+       CPM candidate is filtered out. */
+    const messageTypes = objInputs.objective && objInputs.objective.messageTypes;
+    const cpmPicksMessageFiltered = cpmPicksPreMessageFilter.filter(p => passesMessageTypeFilter(p, messageTypes));
+    const cpmPicks = (cpmPicksMessageFiltered.length === 0 && cpmPicksPreMessageFilter.length > 0 && feeKeys.length === 0)
+      ? cpmPicksPreMessageFilter
+      : cpmPicksMessageFiltered;
+    cpmPicks.forEach(p => { if (cpmPickMap[p.key].profileMatch) requiredCpmKeys.add(p.key); });
 
     /* House rule: a flat 60/40 CPM/fee split made sense when every goal had
        roughly as many fee options as CPM ones, but it quietly starved goals
@@ -6703,9 +6777,16 @@ async function generateDigital(){
     const interestsText = (op.objective.interests && op.objective.interests.trim()) ? (" — interested in: " + op.objective.interests) : "";
     const customerTarget = demoText + interestsText;
     const targetGeography = geoScopeLabel(op.objective.geoScope) + ((op.objective.geography && op.objective.geography.trim()) ? (" — " + op.objective.geography) : "");
+    // Website Improvement is a standalone flag, not a goal - it never adds
+    // its own ad tactics or touches the budget/tactic mix, just surfaces a
+    // referral note so the rep remembers to loop in web services.
+    const websiteImprovementNote = op.objective.websiteImprovement
+      ? '<div class="note-box" style="margin-bottom:12px;"><strong>Website Improvement flagged:</strong> Loop in Max Media\'s web services team for this objective.</div>'
+      : "";
     return '<div class="output-section">'
       + '<h3>' + label + ' <span style="font-weight:400; color:var(--text-muted); font-size:12.5px; text-transform:none; letter-spacing:0;">($' + Math.round(parseFloat(op.objective.budgetDollars) || 0).toLocaleString() + '/mo)</span></h3>'
       + '<div class="note-box" style="margin-bottom:12px;"><strong>Customer Target:</strong> ' + customerTarget + '<br><strong>Target Geography:</strong> ' + targetGeography + '</div>'
+      + websiteImprovementNote
       + renderDigitalPlanMulti(op.plan, op.objective, inputs.industry, i)
       + '</div>';
   }).join("");
