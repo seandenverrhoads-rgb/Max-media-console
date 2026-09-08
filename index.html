@@ -262,6 +262,13 @@
       <div class="field" id="bEthnicityWrap" style="display:none;"><label>Ethnicity target <span class="hint">Real Nielsen data — Hampton Roads only</span></label>
         <select id="bEthnicityTarget"><option value="none" selected>No preference</option><option value="black">Black</option><option value="hispanic">Hispanic</option></select>
       </div>
+      <div class="field"><label>Commercial length(s) <span class="hint">Check one for a single-length schedule, or multiple to allow different lengths per daypart in "Customize this station's schedule" below</span></label>
+        <div class="goal-grid" id="bSpotLengthChecks">
+          <label class="checkbox-row"><input type="checkbox" class="bSpotLengthCheck" value="15"> :15</label>
+          <label class="checkbox-row"><input type="checkbox" class="bSpotLengthCheck" value="30" checked> :30</label>
+          <label class="checkbox-row"><input type="checkbox" class="bSpotLengthCheck" value="60"> :60</label>
+        </div>
+      </div>
       <div class="field"><label>USP</label><textarea id="bUsp" placeholder="e.g. No-haggle pricing"></textarea></div>
       <div class="field"><label>Challenge(s)</label><textarea id="bChallenges" placeholder="e.g. Nobody knows we exist, losing customers to a competitor down the street, can't find enough staff"></textarea></div>
       <div class="row2">
@@ -502,21 +509,33 @@ const STATIONS_BY_MARKET = {
       logo:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAScAAACMCAMAAAAJKJ/qAAAC01BMVEVHcEwrMowrMYw0YJsCAIEqMYwLAH8AAAArMosAAP8cmdgzO5ArMowpM4AtM4wpOI8sMo4rMIsrNI0rM40sNI0A//8rM4wrNI0Fpt8rNI0rMYwqM44rM4wrMowvNI0sNI0sMowsNI0tM40uNI0qNI4sMYxoZagwNY0tNI0sM40sMow7OpEsMo0rMYssM41BQJQsM40sM4wsM4wsMoyZlsOGhLkvNI4rMYwuM42Sj8CAfrYsMoxHRpeNirwNpN6+u9l8ebQqMYsqK4lcWaEMpd4yNJC3tdYMpN8MpN8zM45ybq5SUJ0rMowMpd8MpN9MS5piX6Wno8xta6sMpd4Mo96gncgPpN4qLYkMo951crCtqc94drIMpN8MpN0No90MpeAwNZIMo90Np+EpKYgMpN9WVJ8wNY4Mo94MpN4OufgyNY8A/wAzc7D/AP//AAD///////8r/yTuNyQrMoz////uNiTvOCQsM47vOiXvOyQtNZQrMo3vPSYhI4ztGh8sNJLtFBkuNpckJo7tFxcpKYnuKyTuIiMnKo/uJygqLI0mJojuKiDtHSP///zvPCYsLIruLivvMyQNpuHvMSv9/PwxMIzvMSMsMpH///btHx0jI4fuLiLtHBnuJx/sDhbz8/nuJR8Nq+jwPCP8///4vKY4NY77zLgsLo3vNSj19/0eH4UNsfDvOCjxVUH0gWv4tqD4+/8vN5v6wqnvODXW1Oj+8efvNDDLyeH96t3zcF37yK0rL5L+9u/3r5z1iHL/+/HtIxjs6vXSz+PyW0v85tfzemvh3u3k4/HyaVLyYk/wPjeyr9Pv7vj+7uH1j3b84NP/9+fwRDzn5vPFwt30eVz90bfxTTVwNHD3oobxTkb4xrX2ppT61sf1k4P+2L760r/93sf5OR3pOSn2m4X4q477283b2Oj3mXvwRCr1n4vCN0PZ2u+aN1rYODWHJ1zHpp9HcExGBmDRAAAA8XRSTlMAbvoDAvwDAf4BAgT9BooJFesbWFABIjMFKvYQQMOEOclIZo8M5fx+a6vP/vLao/6WnV+9/v1333L+/NT+/vv+/Lj4/Tr5/tda//z9srRq/v7+/Jd4/gvwSfv+/MQfp/PtKxb85P667In+tQH9AQEBAf////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8Aw5F6AQAAIABJREFUeNrEmOtTE1kaxntMCipJBRguAUURAVEEEZGLaAI4CHIZwaCM4hUGB1d2P7EnsbPTUD25kYSQgEkwgRBCiVwUAgqoDIhcXUHUQUdXEISpWVf9sPs37Omw3BQwMMH9VXWnutPpvOc5z3nPew6CWIotxZb4oNDtGVu8PHYf8Ny59Tjk6607PQ/4eYc5ubrTqcRjtsj/A1tbCoWySMyULxwPhQxPNB+Gs8e34UKhTKis1SQkXIMkJGg0tUri1vE9HhsdaERwizVjdVgY29w/kmh0ezN0msvMPTKZ8oVUIv6I5rjRY9M3BTJlgj/zh9RoVgj7UVxUVFTcSXYIa1/ikZRd15QyabjdZnf4uO3aWoeAstBB9u6ODNctwXs9vIN2B/r5Be4Osgvzct7McHSnm39DonwZlRw22+2HGvmn+Iay7/QAM0VagqLpi+bWR6wjuzT82hxnqJTNwg5HbOjT0OZDoppxge01j+nVqEuDL3dc77w36MDO49ICPl8mEwqVUuhvoUzGLyg4vvOAt5crw4doBWltRyAZDiWGV3YtX8n0jYh7BiXRPn46XtP0eqLLNDBgMnVNfGgam3zb/wv8pjfkiH/ZFb8tNghtXlA2yGY77/9hNw+PeWz7mLA59hJ8RRzbZ/GCwNN2BzKyOXtDAb9Mec2fmRTjm74vNJQFCd0XnRqTxPRPEObxhTsDt7s6TLdkzSBUCvPsKPP3TbsDlXg8Xj3R3vcSLdQLDDguEAhw3CDQd5e8b3zYVf1WC5ofpcfmXbJbD5PCrJvo7ntu5n0KP+/z8JcEeuenn27usKe553TE/uAbGnIyqvdZPZhPc09r1MmQUzFMTVnB137bXRGETlqr9E1D3PdClZisqGZQ9Lapq2/IiAt0YrFEpGpQmEEb6oolErFOLzCOtDfdBSAuNUvq6TQnFB0JDoiNjmCFLmDfHNFmThGkz5GYmEgckNRZfOeT7r/h6/UUJDg2Nu1BM5EG7t+dmhy7VV3dBKmuHquZ6v9FC+8P3znJirmWJ93vsdHc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",
       medianAge:48, genderF:53, genderM:47,
       ageComp:{"12-17":1.4, "18-24":2.2, "25-34":20.1, "35-44":8.6, "45-54":8.8, "55-64":17.6, "65+":41.3},
-      rosR30:30,
+      rosR30:29,
       dayparts:[
         {label:"M-F 5:30am-10am", talent:"Steve & Karen", show:"Eagle Mornings", r30:40},
-        {label:"M-F 10am-3pm", talent:"Jerry Hoyt", show:"Jerry Hoyt Middays", r30:40},
+        {label:"M-F 10am-3pm", talent:"Jerry Hoyt", show:"Jerry Hoyt Middays", r30:45},
         {label:"M-F 3pm-7pm", talent:"Jimmy Ray", show:"Jimmy Ray Weekday Afternoons", r30:45},
         {label:"M-F 7pm-12am", talent:"Stephanie Taylor", show:"Stephanie Taylor Evenings", r30:12}
       ],
+      /* Rates refreshed from Max Media 2026 Rates (15s/30s/60s) rate card,
+         per station, per Sean - replaces the prior generation's numbers
+         below. Weekend/Rotator/ROS are still blended/derived (the new card
+         only prices Morning/Midday/Afternoon/Evening M-F + 4 separate
+         weekend windows, same shape as before) - see the duration-weighted
+         methodology comment above STATIONS_BY_MARKET's Southern Illinois
+         entry, now applied here too:
+         weekend = weighted avg of Sat 6-10a(4hr)/Sat 10a-7p(9hr)/Sun 6-10a(4hr)/Sun 10a-7p(9hr), rounded to nearest dollar
+         rotator = weighted avg of Morning(4hr)/Midday(5hr)/Afternoon(4hr), rounded to nearest dollar
+         ros     = weighted avg of rotator(65hr/wk)/weekend(26hr/wk)/evening(35hr/wk), rounded to nearest dollar
+         (Evening's M-Sun 7pm-Mid rate is used as-is - the new card prices it as one rate spanning all 7 days,
+         same number Sean's card gives regardless of weekday/weekend, so no blending is needed there.) */
       schedule:{
         morning:  {label:"M-F 5:30am-10am", talent:"Steve & Karen", r15:25, r30:40, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
-        midday:   {label:"M-F 10am-3pm", talent:"Jerry Hoyt", r15:25, r30:40, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
+        midday:   {label:"M-F 10am-3pm", talent:"Jerry Hoyt", r15:25, r30:45, r60:55, days:["Mon","Tue","Wed","Thu","Fri"]},
         afternoon:{label:"M-F 3pm-7pm", talent:"Jimmy Ray", r15:25, r30:45, r60:55, days:["Mon","Tue","Wed","Thu","Fri"]},
-        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:20, r30:35, r60:45, days:["Mon","Tue","Wed","Thu","Fri"]},
+        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:25, r30:43, r60:53, days:["Mon","Tue","Wed","Thu","Fri"]},
         evening:  {label:"M-F 7pm-12am", talent:"Stephanie Taylor", r15:7, r30:12, r60:15, days:["Mon","Tue","Wed","Thu","Fri"]},
-        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:15, r30:20, r60:25, days:["Sat","Sun"]},
-        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:15, r30:30, r60:40, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:11, r30:16, r60:21, days:["Sat","Sun"]},
+        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:17, r30:29, r60:36, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
       overnight: {label:"M-Sun 12am-6am", talent:"Overnight", r15:1, r30:1, r60:1, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}
       }
     },
@@ -525,21 +544,24 @@ const STATIONS_BY_MARKET = {
       logo:"data:image/png;base64,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",
       medianAge:47, genderF:53, genderM:47,
       ageComp:{"12-17":1.5, "18-24":9.4, "25-34":11.2, "35-44":11.7, "45-54":9.3, "55-64":23.8, "65+":33.1},
-      rosR30:30,
+      rosR30:29,
       dayparts:[
-        {label:"M-F 5am-9am", talent:"More Music Mornings", show:"More Music Mornings", r30:45},
-        {label:"M-F 9am-3pm", talent:"Jen Lewis", show:"Jen Lewis Middays", r30:50},
-        {label:"M-F 3pm-7pm", talent:"Barry McKay", show:"Barry McKay Afternoons", r30:50},
+        {label:"M-F 5am-9am", talent:"More Music Mornings", show:"More Music Mornings", r30:40},
+        {label:"M-F 9am-3pm", talent:"Jen Lewis", show:"Jen Lewis Middays", r30:45},
+        {label:"M-F 3pm-7pm", talent:"Barry McKay", show:"Barry McKay Afternoons", r30:45},
         {label:"M-F 7pm-12am", talent:"Eve", show:"Best of the 80s to Now", r30:12}
       ],
+      /* Rates refreshed from Max Media 2026 Rates (15s/30s/60s) rate card,
+         per station, per Sean - see the identical comment above the Eagle
+         entry for the weekend/rotator/ROS blending methodology. */
       schedule:{
-        morning:  {label:"M-F 6am-10am (More Music Mornings runs 5a-9a)", talent:"More Music Mornings", r15:25, r30:45, r60:55, days:["Mon","Tue","Wed","Thu","Fri"]},
-        midday:   {label:"M-F 10am-3pm (Jen Lewis runs 9a-3p)", talent:"Jen Lewis", r15:25, r30:50, r60:60, days:["Mon","Tue","Wed","Thu","Fri"]},
-        afternoon:{label:"M-F 3pm-7pm", talent:"Barry McKay", r15:25, r30:50, r60:60, days:["Mon","Tue","Wed","Thu","Fri"]},
-        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:20, r30:40, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
+        morning:  {label:"M-F 6am-10am (More Music Mornings runs 5a-9a)", talent:"More Music Mornings", r15:25, r30:40, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
+        midday:   {label:"M-F 10am-3pm (Jen Lewis runs 9a-3p)", talent:"Jen Lewis", r15:25, r30:45, r60:55, days:["Mon","Tue","Wed","Thu","Fri"]},
+        afternoon:{label:"M-F 3pm-7pm", talent:"Barry McKay", r15:25, r30:45, r60:55, days:["Mon","Tue","Wed","Thu","Fri"]},
+        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:25, r30:43, r60:53, days:["Mon","Tue","Wed","Thu","Fri"]},
         evening:  {label:"M-F 7pm-12am", talent:"Eve", r15:7, r30:12, r60:15, days:["Mon","Tue","Wed","Thu","Fri"]},
-        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:12, r30:20, r60:25, days:["Sat","Sun"]},
-        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:15, r30:30, r60:45, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:11, r30:16, r60:21, days:["Sat","Sun"]},
+        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:17, r30:29, r60:36, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
       overnight: {label:"M-Sun 12am-6am", talent:"Overnight", r15:1, r30:1, r60:1, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}
       }
     },
@@ -548,19 +570,22 @@ const STATIONS_BY_MARKET = {
       logo:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIwAAACMCAMAAACZHrEMAAADAFBMVEVHcEwZDyff3f85DW4RBEno6Pvd2/////8KAC0IACezrODXz/c2DWkaECdNKH3d2/3V0/UuJD7g3v/KyOgaECji4P8bDDcZECUhETMYDygZIl4RCioXDSQvDlkaECfc2/0XDicYDSbe3P+dj795Yp8qHz+7uNYbECwZDyba2vjg3/8WDCYcFC7j4f/d2/wAAAff3f4bESvd3P/f3f8WDiYaECXj4v9XUGyQe7gQBync3P8VDSHU0vLd2/+8udbj4f8cEiTHxd05Dm3i4P8ZDigsIjwoHjc0Cme8udY2DGno5//w7v/g3v/X1fQxB2W9u9erocvX0u26uNYqIDnMzOTb2fwcESjEwd9LOB/RzvAuJT65tdK7t9OZh8FoUpL//wBPLIBmSo8rAGBFNCC5tdPe3P83DWoaECjb2fzd2/7t7P/c2v4dEys3DGkLARkcEik4DmsaECnn5f86DXANBSrj4f/l4/+9u9gzCGf/0QAOBBv9zAAXDSfa2Pvv7f/s6v/h4P/q6f/g3/8SCin/0wDo5/8HASu8udYSBx8sA+G6ttUrAWAvA2PIxuEZECLf3f4VCiI6EG3/3ADW0/bBvtvFwuAgFis0JST/1gApDkoEAA//zwAsHyTy8f//2gD/2ABAN1HkuATrvwNxaoelm8RAMCEjDzwqIDlQPR74ygGgnLr/3gAcESwfAkHQzu8sDlKqo8acmbRMOh+aehGxrczV0vQlGzclGSRhWnaWkbC4stTDnArMyul1b4trZIAaBDg1K0fKpAmIdqwhEDb/4QDY1vlMQ1+BZxZ7dZKSgrXSqgdGNCDyxAJlX3pRSWU6Mkz39v/T0PLS0uaOiaaOcBOjghCJhKCTdRNGPVrMyeCCbqdCGnO2kQ1cVXAuJUB9Z6R3XhdcPol0XJyDfZuzp9etiw4zDWH5zwHV0++dlblkThvZsAcmEUGmorva2PFwWBn/6AAjA1IkGTBmR5I0ElxbRxyAa6Xf3fVrUxv41AH/7wBWQx1ALF1pU41bRiBHcEwfEnuuAAABAHRSTlMA/Pz9BAT7AQECAxD86f52JM93CnU6RLUZalJSX/76npHE7f3+CZwuoRst8A/WW22MJWm52OCn/vv8RYBO5urGzv6C9DLKx5Wuq+/07P7Re7cCP9XG+/3q6d7j28OZwwGn2rfmyf///////////////////////////////////////////////////////////////////////////v////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8Av3Nw+gAADjlJREFUeNrsmH1IG2kex6euyRi11atrt8t13W3tyequXq+ytXTbLfZlt9te23VfuVfujhtnJhOjyTBjGEziTBkiedlJMBE2IASUCqJZBQ01RCMuEf3Dtwpiu6i0ylKhLbQ92n924Z55JqaWKxw0WfWPfP8IyZPo88n3+3t+z08RJK200korrbTSSiuttNJKK620tk+q7B2DUoOU5SPoTvEFrTiB7hRvVEjlEfCwQ1IqFM/ukJzQgvxyRqwsVe2IjAovCiTFHMoHFm0/zAlejZGYtJ0wKIpuOMNSGCmpFRh0u50RZZiMsm10Jqe0IA7ztlaNYWptHug3aGl+ds1Wm6NSnbx4trw0G90EsxdR1SClFeg2tJYykT0FK+QFmJzCo/lxx7aueFVHj2VIh44UZte8AIOcvnT27KW8Le3GKuRouwgOsyWjDFUVoJtgymeN7OwmGHQrYPZawf6YurlMfrkpptMWI8sfUam2jgXA5Mn7Y5hQhnx+UrU5pnaGYU49p8hR/TrHPUt+KCjYDCMJJ//qc/3lTywZh8kvb89QM6cKc2pqULkp5leAWq9J8VnPRioKwQOKlObXoJucCX7ks9m93gihwCDHtBmYhGVoT2yUFnvsxK8wPe2tKJBh8j9HEjCkELQ32m1AdpcUhwGlRFEEc7Igp6AgB805zVpOVVaeLkxlb0aRnPJLIAUVWvKNfANtOEN5IYvN1iphX1nzNJpjolqYa/R6PwL65gJy1KJWMzw7W5limEPiqXJQABdaLwCURExehcUWw0h2VnZmNoMiwGvAY4tcRU4yFEap1XxKx0AZRpK05ZX5JXMlmpfAtPLMmv1v+/Z9Fm61xHzVUPeuIoXtEpDaknKYZkrdPFtY0lryEmfsxNoTk7OOpk3OO8Ux1y2oh1ez/7ESlAjqK+sRTcphMDVbWDL42Se/QwpUAIakqI2asUtrpjpP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",
       medianAge:43, genderF:57, genderM:43,
       ageComp:{"12-17":4.4, "18-24":7.9, "25-34":11.0, "35-44":8.6, "45-54":11.5, "55-64":28.3, "65+":28.3},
-      rosR30:30,
+      rosR30:29,
       dayparts:[
         {label:"M-F 10am-3pm", talent:"Tone Hollywood", show:"Tone Hollywood Middays", r30:45},
         {label:"M-F 3pm-7pm", talent:"Charles Black", show:"Charles Black Afternoons", r30:45}
       ],
+      /* Rates refreshed from Max Media 2026 Rates (15s/30s/60s) rate card,
+         per station, per Sean - see the identical comment above the Eagle
+         entry for the weekend/rotator/ROS blending methodology. */
       schedule:{
-        morning:  {label:"M-F 6am-10am", talent:"Morning Vibes", r15:20, r30:40, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
+        morning:  {label:"M-F 6am-10am", talent:"Morning Vibes", r15:25, r30:40, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
         midday:   {label:"M-F 10am-3pm", talent:"Tone Hollywood", r15:25, r30:45, r60:55, days:["Mon","Tue","Wed","Thu","Fri"]},
         afternoon:{label:"M-F 3pm-7pm", talent:"Charles Black", r15:25, r30:45, r60:55, days:["Mon","Tue","Wed","Thu","Fri"]},
-        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:20, r30:35, r60:45, days:["Mon","Tue","Wed","Thu","Fri"]},
+        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:25, r30:43, r60:53, days:["Mon","Tue","Wed","Thu","Fri"]},
         evening:  {label:"M-Sun 7pm-Mid — Fri/Sat 7-10p: KPC; Fri/Sat 10p-2a: DJ Mista Nice; other weeknights unnamed", talent:"Eve", r15:7, r30:12, r60:15, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
-        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:12, r30:20, r60:25, days:["Sat","Sun"]},
-        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:15, r30:30, r60:40, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:11, r30:16, r60:21, days:["Sat","Sun"]},
+        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:17, r30:29, r60:36, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
       overnight: {label:"M-Sun 12am-6am", talent:"Overnight", r15:1, r30:1, r60:1, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}
       }
     },
@@ -569,21 +594,27 @@ const STATIONS_BY_MARKET = {
       logo:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACMCAMAAACpkqAtAAACc1BMVEVHcExfXV03MzNkYWGsoqIsKChOSkrAwMD///93ampbV1e4s7Oln5+spqZ4dXWwq6uxra28t7e1sLC+ubnFv7+WlJS2sbG8t7e5tLQ7ERS+uLi6tbXFwMC/urrBu7u8trbCvb3Dvb3Dvr6/urrKw8MsGRrAu7vKwsPBvLyDfX3az9AA//9HcEzt/x8jHx/tHCT///8kHx8kICATDw8lISEmIiIfGxsbFxccHx4RDQ3uIS8nIyMhHR0dGRn//v/4HCQVEREZFRUYExP8/Pz9/f69HSPrHCTrEiIvKysRFRWcmprsFyfrITD2ITH/+fjtFR78ITEQCgqin5/tHSzHw8T//f3sDBXtHydDPz+TkZEXHx7uJTOpER0UHx62s7NKR0fsERn7JDNGQ0PEwME7NzeLiIjvOD4qJSWYlZUzLy/rHiWmpKS/vLz709JAPDxycHD4rK2vrK3NycnQy8tRT0+rqamysLDp6evSzc26t7iPjIxLHyJWU1OmER39HCTuHCT70NFta2vw8PG0ER7oHCR7eXnMxsbwRk/Ix8g8ICFoHyMaIyL39/jzHCXW1db0Zm13ICXQ0NH95uZ2ExtZICIgHx/Y2NnsHCQXISAxHyD+8PDxUlxpZmbe3d6IhIX2jpJTFBnyXWTBISy2ISrzbnWFICXl5OX3lZmpISoqICCRICeeIip/fHzuLjn3nqGsER36vL/0dnvHJTD7zM3oIjD5tLf4pagGAgKFgYL2hovcIi/1foTUz8/vMz7uKTXQIS2HEBn6xMbU0dGZHyXwPknYHCP829zJHSOpHiKDgICaERyBfn+9EyB9gYDNAFwAXDNHcEwdbeK4AAAA0XRSTlMA//7+A/7+BAEB/mIOHP4oNbNBw/kHUp2G/Yx5686kcOjh8tO2+9jR3v3IAQD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AINGmVIAAB1FSURB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",
       medianAge:49, genderF:27, genderM:73,
       ageComp:{"12-17":0.7, "18-24":0.6, "25-34":0.7, "35-44":19.5, "45-54":25.8, "55-64":48.6, "65+":4.1},
-      rosR30:15,
+      rosR30:14,
       dayparts:[
         {label:"M-F 6am-10am", talent:"Evan, Canty & Michelle", show:"UnSportsmanLike", r30:25},
         {label:"M-F 10am-12pm", talent:"The Golics", show:"The Golics", r30:25},
         {label:"M-F 12pm-3pm", talent:"Rich Eisen", show:"The Rich Eisen Show", r30:25},
         {label:"M-F 3pm-7pm", talent:"Scott Jackson", show:"The Scott Jackson Show", r30:25}
       ],
+      /* Rates refreshed from Max Media 2026 Rates (15s/30s/60s) rate card,
+         per station, per Sean - see the identical comment above the Eagle
+         entry for the weekend/rotator/ROS blending methodology. Morning/
+         Midday/Afternoon :30/:60 are unchanged from the prior card here;
+         only :15 moved (was priced a notch below the other Hampton Roads
+         stations, the new card brings it in line at $20). */
       schedule:{
-        morning:  {label:"M-F 6am-10am", talent:"UnSportsmanLike", r15:15, r30:25, r60:30, days:["Mon","Tue","Wed","Thu","Fri"]},
-        midday:   {label:"M-F 10am-3pm (dominant: The Rich Eisen Show 12-3p; also The Golics 10a-12p)", talent:"The Rich Eisen Show", r15:15, r30:25, r60:30, days:["Mon","Tue","Wed","Thu","Fri"]},
-        afternoon:{label:"M-F 3pm-7pm", talent:"The Scott Jackson Show", r15:15, r30:25, r60:30, days:["Mon","Tue","Wed","Thu","Fri"]},
-        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:12, r30:20, r60:25, days:["Mon","Tue","Wed","Thu","Fri"]},
+        morning:  {label:"M-F 6am-10am", talent:"UnSportsmanLike", r15:20, r30:25, r60:30, days:["Mon","Tue","Wed","Thu","Fri"]},
+        midday:   {label:"M-F 10am-3pm (dominant: The Rich Eisen Show 12-3p; also The Golics 10a-12p)", talent:"The Rich Eisen Show", r15:20, r30:25, r60:30, days:["Mon","Tue","Wed","Thu","Fri"]},
+        afternoon:{label:"M-F 3pm-7pm", talent:"The Scott Jackson Show", r15:20, r30:25, r60:30, days:["Mon","Tue","Wed","Thu","Fri"]},
+        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:20, r30:25, r60:30, days:["Mon","Tue","Wed","Thu","Fri"]},
         evening:  {label:"M-F 7pm-1am — Amber & Ian 7-10p, GameNight 10p-1a", talent:"Amber & Ian / GameNight", r15:5, r30:8, r60:10, days:["Mon","Tue","Wed","Thu","Fri"]},
-        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:7, r30:12, r60:15, days:["Sat","Sun"]},
-        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:10, r30:15, r60:20, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:9, r30:11, r60:14, days:["Sat","Sun"]},
+        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:14, r30:17, r60:21, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
       overnight: {label:"M-Sun 12am-6am", talent:"Overnight", r15:1, r30:1, r60:1, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}
       }
     },
@@ -592,22 +623,27 @@ const STATIONS_BY_MARKET = {
       logo:"data:image/png;base64,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",
       medianAge:47, genderF:29, genderM:71,
       ageComp:{"12-17":0.0, "18-24":1.3, "25-34":8.7, "35-44":0.0, "45-54":0.2, "55-64":81.8, "65+":8.1},
-      rosR30:4,
+      rosR30:6,
       dayparts:[
-        {label:"M-F 6am-9am", talent:"Johnny D", show:"The Morning Drive", r30:8},
-        {label:"M-F 9am-12pm", talent:"Dan Patrick", show:"The Dan Patrick Show", r30:8},
-        {label:"M-F 12pm-3pm", talent:"Colin Cowherd", show:"The Herd", r30:8},
-        {label:"M-F 3pm-5pm", talent:"Doug Gottlieb", show:"The Doug Gottlieb Show", r30:8},
-        {label:"M-F 5pm-7pm", talent:"Covino & Rich", show:"Covino and Rich", r30:8}
+        {label:"M-F 6am-9am", talent:"Johnny D", show:"The Morning Drive", r30:10},
+        {label:"M-F 9am-12pm", talent:"Dan Patrick", show:"The Dan Patrick Show", r30:10},
+        {label:"M-F 12pm-3pm", talent:"Colin Cowherd", show:"The Herd", r30:10},
+        {label:"M-F 3pm-5pm", talent:"Doug Gottlieb", show:"The Doug Gottlieb Show", r30:10},
+        {label:"M-F 5pm-7pm", talent:"Covino & Rich", show:"Covino and Rich", r30:10}
       ],
+      /* Rates refreshed from Max Media 2026 Rates (15s/30s/60s) rate card,
+         per station, per Sean - see the identical comment above the Eagle
+         entry for the weekend/rotator/ROS blending methodology. Weekend
+         and Evening are already flat $3/$4/$5 on the new card, same as
+         before, so those two rows are unchanged. */
       schedule:{
-        morning:  {label:"M-F 6am-10am", talent:"Johnny D", r15:5, r30:8, r60:10, days:["Mon","Tue","Wed","Thu","Fri"]},
-        midday:   {label:"M-F 10am-3pm", talent:"Dan Patrick & The Herd", r15:5, r30:8, r60:10, days:["Mon","Tue","Wed","Thu","Fri"]},
-        afternoon:{label:"M-F 3pm-7pm", talent:"Doug Gottlieb & Covino/Rich", r15:5, r30:8, r60:10, days:["Mon","Tue","Wed","Thu","Fri"]},
-        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:4, r30:7, r60:9, days:["Mon","Tue","Wed","Thu","Fri"]},
+        morning:  {label:"M-F 6am-10am", talent:"Johnny D", r15:8, r30:10, r60:15, days:["Mon","Tue","Wed","Thu","Fri"]},
+        midday:   {label:"M-F 10am-3pm", talent:"Dan Patrick & The Herd", r15:8, r30:10, r60:15, days:["Mon","Tue","Wed","Thu","Fri"]},
+        afternoon:{label:"M-F 3pm-7pm", talent:"Doug Gottlieb & Covino/Rich", r15:8, r30:10, r60:15, days:["Mon","Tue","Wed","Thu","Fri"]},
+        rotator:  {label:"M-F 6am-7pm", talent:"Prime Rotator", r15:8, r30:10, r60:15, days:["Mon","Tue","Wed","Thu","Fri"]},
         evening:  {label:"M-Sun 7pm-Mid", talent:"The Odd Couple", r15:3, r30:4, r60:5, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
         weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:3, r30:4, r60:5, days:["Sat","Sun"]},
-        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:3, r30:4, r60:5, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        ros:      {label:"Mon-Sun 6am-12am", talent:"ROS", r15:6, r30:7, r60:10, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
       overnight: {label:"M-Sun 12am-6am", talent:"Overnight", r15:1, r30:1, r60:1, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}
       }
     }
@@ -2939,6 +2975,23 @@ function realCumePersons(callsign, genderKey, targetAge, daypartKey){
   return typeof fwValue === "number" ? fwValue : 0;
 }
 
+/* The station's TOTAL (12+/18+/21+, i.e. the "b" cell) real Weekly Cume for
+   one gender + daypart - the denominator used to express a thin target-age
+   cume as "X% of this station's audience" instead of a near-zero raw
+   number. Mirrors realCumePersons's daypart/"broad" resolution exactly, but
+   always reads the unfiltered base cell rather than an age-resolved one. */
+function realCumeBasePersons(callsign, genderKey, daypartKey){
+  const cumeData = (HAMPTON_ROADS_CUME[genderKey] || {})[callsign];
+  if (!cumeData) return 0;
+  if (daypartKey !== "broad" && cumeData[daypartKey]){
+    const v = cumeData[daypartKey].b;
+    return typeof v === "number" ? v : 0;
+  }
+  const fwTable = genderKey === "male" ? HAMPTON_ROADS_FULLWEEK_CUME_MALE : HAMPTON_ROADS_FULLWEEK_CUME_FEMALE;
+  const fw = fwTable[callsign];
+  return fw && typeof fw.b === "number" ? fw.b : 0;
+}
+
 /* Small, explicitly-scoped tiebreaker weights — per Sean, these should
    count for much less than the real age/gender/daypart audience number
    above, only enough to "dial in" a close call. */
@@ -3033,11 +3086,53 @@ function getCompetitiveTarget(competitive){
 }
 const OVERNIGHT_SPOT_CAP = 20; // max overnight (M-Sun 12am-6am) spots/week for the leftover-absorption add-on, regardless of how much budget is left over
 
+/* Commercial length selection - per Sean, sellers/clients sometimes run
+   one length throughout an entire schedule, sometimes a mix of lengths
+   across different dayparts within the same schedule. Every station's
+   real schedule daypart already carries real :15/:30/:60 rates
+   (r15/r30/r60 on station.schedule[daypart]) straight from the rate
+   card - which one prices a given schedule used to be hardcoded to :30
+   everywhere; now it's driven by the "Commercial length(s)" checkboxes
+   on the Broadcast tab. */
+const SPOT_LENGTHS = ["15","30","60"];
+/* The auto-recommendation engine (which stations, how many spots, which
+   dayparts) prices the WHOLE schedule at one "planning length" even
+   when multiple lengths are checked for this objective - :30 if it's
+   one of the checked lengths (matches today's behavior when only :30
+   is checked, the common single-length case), otherwise the first
+   checked length in :15/:30/:60 order. Mixing different lengths across
+   individual dayparts within the same schedule is a rep-driven,
+   per-daypart choice made in "Customize this station's schedule" below
+   (see renderManualScheduleTool) - the auto-recommendation itself
+   doesn't try to solve for an optimal length mix on its own. */
+function planningLengthFor(spotLengths){
+  if (!Array.isArray(spotLengths) || !spotLengths.length) return "30";
+  if (spotLengths.includes("30")) return "30";
+  return SPOT_LENGTHS.find(l => spotLengths.includes(l)) || "30";
+}
+function rateForLength(dp, length, rateMult){
+  if (!dp) return 0;
+  const mult = rateMult || 1;
+  return (dp["r" + (length || "30")] || 0) * mult;
+}
+/* station.rosR30 is a flat, :30-only convenience field used everywhere
+   for quick station-level affordability checks (before any per-daypart
+   schedule math runs) - this resolves the equivalent rate at whichever
+   length is actually being priced, falling back to rosR30 itself if
+   this station's ROS rate at that length is missing/zero (e.g. :15 not
+   sold at all in a market - see the proxy markets' r15:0 entries). */
+function rosRateFor(station, length){
+  const rosDp = station.schedule && station.schedule.ros;
+  const rate = rosDp && rosDp["r" + (length || "30")];
+  return (rate != null && rate > 0) ? rate : station.rosR30;
+}
+
 function pickStationsAndSchedule(inputs, broadcastBudget){
   const stations = STATIONS_BY_MARKET[inputs.market];
   if (!stations) return null;
   const scored = stations.map(s => ({s, score: stationFitScore(s, inputs.targetAge, inputs.genderSkew, inputs)})).sort((a,b) => b.score - a.score);
   const monthlyBudget = parseFloat(broadcastBudget) || 0;
+  const planningLength = inputs.planningLength || "30";
   /* Weeks running per month: default 4.33 (real average weeks/month, spent
      evenly all month). A rep can dial this down to 3/2/1 when the budget
      can't support a full month at effective frequency — the same monthly
@@ -3060,7 +3155,7 @@ function pickStationsAndSchedule(inputs, broadcastBudget){
      market regardless of that market's own rate card. */
   let primary = null;
   for (const {s: station} of scored){
-    const maxSpotsAtRos = Math.floor(remaining / station.rosR30);
+    const maxSpotsAtRos = Math.floor(remaining / rosRateFor(station, planningLength));
     if (maxSpotsAtRos <= 0){ skippedForBudget.push(station.name); continue; }
     primary = {station, maxSpotsAtRos};
     break;
@@ -3069,7 +3164,7 @@ function pickStationsAndSchedule(inputs, broadcastBudget){
   if (primary){
     const {station, maxSpotsAtRos} = primary;
     let spotsPerWeek = Math.min(maxSpotsAtRos, SCHEDULE_HEALTHY_MAX_SPOTS);
-    let weeklyDollars = spotsPerWeek * station.rosR30;
+    let weeklyDollars = spotsPerWeek * rosRateFor(station, planningLength);
     const bestDaypart = station.dayparts.slice().sort((a,b) => b.r30 - a.r30)[0];
     const planEntry = {
       station, spotsPerWeek, weeklyDollars, bestDaypart,
@@ -3097,13 +3192,13 @@ function pickStationsAndSchedule(inputs, broadcastBudget){
       for (const {s: station2} of scored){
         if (station2 === station) continue;
         if (remaining <= 0) break;
-        const maxAffordable2 = Math.floor(remaining / station2.rosR30);
+        const maxAffordable2 = Math.floor(remaining / rosRateFor(station2, planningLength));
         if (maxAffordable2 < SCHEDULE_MIN_VIABLE_SPOTS){
           if (maxAffordable2 > 0) skippedForBudget.push(station2.name);
           continue;
         }
         const spotsPerWeek2 = Math.min(maxAffordable2, SCHEDULE_HEALTHY_MAX_SPOTS);
-        const weeklyDollars2 = spotsPerWeek2 * station2.rosR30;
+        const weeklyDollars2 = spotsPerWeek2 * rosRateFor(station2, planningLength);
         const bestDaypart2 = station2.dayparts.slice().sort((a,b) => b.r30 - a.r30)[0];
         plan.push({
           station: station2, spotsPerWeek: spotsPerWeek2, weeklyDollars: weeklyDollars2, bestDaypart: bestDaypart2,
@@ -3127,11 +3222,11 @@ function pickStationsAndSchedule(inputs, broadcastBudget){
     if (plan.length === 1 && maxSpotsAtRos > SCHEDULE_HEALTHY_MAX_SPOTS && remaining > 0){
       const extraSpots = Math.min(
         maxSpotsAtRos - spotsPerWeek,
-        Math.floor(remaining / station.rosR30),
+        Math.floor(remaining / rosRateFor(station, planningLength)),
         SCHEDULE_HEAVY_MAX_SPOTS - spotsPerWeek
       );
       if (extraSpots > 0){
-        const extraDollars = extraSpots * station.rosR30;
+        const extraDollars = extraSpots * rosRateFor(station, planningLength);
         spotsPerWeek += extraSpots;
         weeklyDollars += extraDollars;
         remaining -= extraDollars;
@@ -3161,10 +3256,11 @@ function pickStationsAndSchedule(inputs, broadcastBudget){
   if (leftoverWeekly > 0 && plan.length > 0){
     const topStation = plan[0].station;
     const overnightDp = topStation.schedule && topStation.schedule.overnight;
-    if (overnightDp && overnightDp.r30 > 0){
-      const overnightSpots = Math.min(OVERNIGHT_SPOT_CAP, Math.floor(leftoverWeekly / overnightDp.r30));
+    const overnightRate = rateForLength(overnightDp, planningLength, 1);
+    if (overnightDp && overnightRate > 0){
+      const overnightSpots = Math.min(OVERNIGHT_SPOT_CAP, Math.floor(leftoverWeekly / overnightRate));
       if (overnightSpots > 0){
-        const overnightWeeklyDollars = overnightSpots * overnightDp.r30;
+        const overnightWeeklyDollars = overnightSpots * overnightRate;
         overnightAddon = { station: topStation, spots: overnightSpots, weeklyDollars: overnightWeeklyDollars, label: overnightDp.label };
         remaining -= overnightWeeklyDollars;
       }
@@ -3201,15 +3297,16 @@ function pickStationsManual(inputs, broadcastBudget, manualStationIds){
   if (!chosenStations.length) return null;
   const weeklyBudget = (parseFloat(broadcastBudget) || 0) / (inputs.weeksPerMonth || 4.33);
   const perStationWeekly = weeklyBudget / chosenStations.length;
+  const planningLength = inputs.planningLength || "30";
 
   const plan = chosenStations.map(station => {
-    const maxAffordable = Math.floor(perStationWeekly / station.rosR30);
+    const maxAffordable = Math.floor(perStationWeekly / rosRateFor(station, planningLength));
     // Manual mode: the rep already chose these stations, so there's no
     // 2nd-station-vs-heavier-primary comparison to make - just let a
     // single manually-picked station run a legitimate heavy schedule
     // (up to SCHEDULE_HEAVY_MAX_SPOTS) instead of hard-clamping at 70.
     const spotsPerWeek = Math.min(SCHEDULE_HEAVY_MAX_SPOTS, Math.max(0, maxAffordable));
-    const weeklyDollars = spotsPerWeek * station.rosR30;
+    const weeklyDollars = spotsPerWeek * rosRateFor(station, planningLength);
     const bestDaypart = station.dayparts.slice().sort((a,b) => b.r30 - a.r30)[0];
     return {
       station, spotsPerWeek, weeklyDollars, bestDaypart,
@@ -3264,7 +3361,21 @@ function stationFitStatementReal(station, inputs){
     : `#${rank} of ${stations.length} Hampton Roads stations for this target`;
   const wherePhrase = daypartLabel ? `in ${daypartLabel}` : `across the broadcast week`;
 
-  let line = `Nielsen shows ${station.name} reaches about ${persons.toLocaleString()} real ${genderLabel} ${inputs.targetAge} listeners ${wherePhrase} — ${rankPhrase}.`;
+  /* Below ~5,000, the raw weekly-cume number reads as vanishingly small (or
+     literally 0, as with a Sports-format station and an off-format demo)
+     and undersells what's still a real, nonzero share of that station's
+     audience. In that case swap the sentence to the target demo's share of
+     the station's own total audience (its "b"/12+ weekly cume) for the same
+     daypart, rather than the near-zero headcount. Ranking above is
+     untouched either way - only this displayed sentence changes. */
+  const cumeBase = (inputs.genderSkew === "male" || inputs.genderSkew === "female")
+    ? realCumeBasePersons(station.callsign, inputs.genderSkew, daypartKey)
+    : (realCumeBasePersons(station.callsign, "male", daypartKey) + realCumeBasePersons(station.callsign, "female", daypartKey)) / 2;
+  const audiencePct = cumeBase > 0 ? (cumePersons / cumeBase) * 100 : 0;
+
+  let line = (persons < 5000 && cumeBase > 0)
+    ? `Nielsen shows ${genderLabel} ${inputs.targetAge} make up about ${audiencePct.toFixed(1)}% of ${station.name}'s audience ${wherePhrase} — ${rankPhrase}.`
+    : `Nielsen shows ${station.name} reaches about ${persons.toLocaleString()} ${genderLabel} ${inputs.targetAge} listeners ${wherePhrase} — ${rankPhrase}.`;
 
   if (inputs.ethnicityTarget && inputs.ethnicityTarget !== "none"){
     const eth = HAMPTON_ROADS_ETHNICITY[station.callsign];
@@ -3586,7 +3697,7 @@ function distributeAcrossDays(totalSpots, days, weights){
   return dayCounts;
 }
 
-function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, customDays, quuMultiplier, concentrationMode){
+function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, customDays, quuMultiplier, concentrationMode, spotLength){
   const capSpots = maxSpots || 70;
   const sched = station.schedule;
   const rateMult = quuMultiplier || 1;
@@ -3634,7 +3745,7 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
       categoryDollars.rotator = nonWeekendDollars * FRINGE_TIME_WEIGHTS.rotator;
     } else {
       const weekdayCats = ["morning","midday","afternoon","rotator","evening"];
-      const cheapestCat = weekdayCats.reduce((best,c) => (sched[c].r30 < sched[best].r30 ? c : best), weekdayCats[0]);
+      const cheapestCat = weekdayCats.reduce((best,c) => (rateForLength(sched[c], spotLength, 1) < rateForLength(sched[best], spotLength, 1) ? c : best), weekdayCats[0]);
       weekdayCats.forEach(c => { categoryDollars[c] = (c === cheapestCat) ? nonWeekendDollars : 0; });
     }
     categoryDollars.weekend = weekendDollars;
@@ -3697,7 +3808,7 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
   const rows = [];
   cats.forEach(catKey => {
     const dp = sched[catKey];
-    const rate30 = dp.r30 * rateMult;
+    const rate30 = rateForLength(dp, spotLength, rateMult);
     const dollars = categoryDollars[catKey] || 0;
     const useDays = daysByCategory[catKey];
     if (useDays.length > 0){
@@ -3711,7 +3822,7 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
       const actualDollars = spots * rate30;
       leftover += (dollars - actualDollars);
       if (spots > 0){
-        rows.push({key: catKey, label: dp.label, talent: dp.talent, r15: dp.r15 * rateMult, r30: rate30, r60: dp.r60 * rateMult, days: useDays, skew: skewByCategory[catKey], spots, dollars: actualDollars, dayCounts: distributeAcrossDays(spots, useDays, skewByCategory[catKey])});
+        rows.push({key: catKey, label: dp.label, talent: dp.talent, r15: dp.r15 * rateMult, r30: dp.r30 * rateMult, r60: dp.r60 * rateMult, length: spotLength || "30", rate: rate30, days: useDays, skew: skewByCategory[catKey], spots, dollars: actualDollars, dayCounts: distributeAcrossDays(spots, useDays, skewByCategory[catKey])});
       }
     } else {
       leftover += dollars;
@@ -3719,7 +3830,7 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
   });
 
   const rosDp = sched.ros;
-  const rosRate30 = rosDp.r30 * rateMult;
+  const rosRate30 = rateForLength(rosDp, spotLength, rateMult);
   /* ROS's own native days span Mon-Sun on every station, so the leftover-
      sweep below needs the SAME day restriction the categories above just
      got, or it re-introduces weekend spots under "weekdays only" (and
@@ -3743,17 +3854,17 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
     const rosSkew = WEEKDAY_SKEW[dayPref] || null;
     const existingRos = rows.find(r => r.key === "ros");
     if (existingRos){ existingRos.spots += extraRosSpots; }
-    else { rows.push({key:"ros", label:rosDp.label, talent:rosDp.talent, r15:rosDp.r15 * rateMult, r30:rosRate30, r60:rosDp.r60 * rateMult, days:rosDays, skew:rosSkew, spots:extraRosSpots}); }
+    else { rows.push({key:"ros", label:rosDp.label, talent:rosDp.talent, r15:rosDp.r15 * rateMult, r30:rosDp.r30 * rateMult, r60:rosDp.r60 * rateMult, length: spotLength || "30", rate: rosRate30, days:rosDays, skew:rosSkew, spots:extraRosSpots}); }
   }
 
   let totalSpots = rows.reduce((s,r) => s + r.spots, 0);
   let unspentFromCap = 0;
   while (totalSpots > capSpots){
-    const cheapest = rows.filter(r => r.spots > 0).sort((a,b) => a.r30 - b.r30)[0];
+    const cheapest = rows.filter(r => r.spots > 0).sort((a,b) => a.rate - b.rate)[0];
     if (!cheapest) break;
-    cheapest.spots -= 1; totalSpots -= 1; unspentFromCap += cheapest.r30;
+    cheapest.spots -= 1; totalSpots -= 1; unspentFromCap += cheapest.rate;
   }
-  rows.forEach(r => { r.dollars = r.spots * r.r30; r.dayCounts = distributeAcrossDays(r.spots, r.days, r.skew); });
+  rows.forEach(r => { r.dollars = r.spots * r.rate; r.dayCounts = distributeAcrossDays(r.spots, r.days, r.skew); });
   const finalRows = rows.filter(r => r.spots > 0);
   const totalDollars = finalRows.reduce((s,r) => s + r.dollars, 0);
   return {rows: finalRows, totalSpots, totalDollars, unspentFromCap, capSpots};
@@ -3794,7 +3905,7 @@ function categoryForTimePref(timePref){
    machinery) since it's just one category at a non-real, derived rate;
    returns the same {rows, totalSpots, totalDollars, ...} shape so it
    drops into renderScheduleGrid exactly like a normal grid. */
-function buildWidenedGrid(station, weeklyDollars, timePref, dayPref, maxSpots, quuMultiplier){
+function buildWidenedGrid(station, weeklyDollars, timePref, dayPref, maxSpots, quuMultiplier, spotLength){
   const cat = categoryForTimePref(timePref);
   if (!cat) return null;
   const sched = station.schedule;
@@ -3803,7 +3914,7 @@ function buildWidenedGrid(station, weeklyDollars, timePref, dayPref, maxSpots, q
   const weekendShare = DAY_WEEKEND_SHARE[dayPref] != null ? DAY_WEEKEND_SHARE[dayPref] : DAY_WEEKEND_SHARE.light_weekend;
   const weekendDollars = weeklyDollars * weekendShare;
   const nonWeekendDollars = weeklyDollars - weekendDollars;
-  const baseRate = dp.r30 * rateMult;
+  const baseRate = rateForLength(dp, spotLength, rateMult);
 
   let chosenTier = DAYPART_WIDENING_DISCOUNTS[DAYPART_WIDENING_DISCOUNTS.length - 1];
   for (const tier of DAYPART_WIDENING_DISCOUNTS){
@@ -3827,17 +3938,17 @@ function buildWidenedGrid(station, weeklyDollars, timePref, dayPref, maxSpots, q
   if (spots > 0 && catDays.length > 0){
     rows.push({
       key: cat, label: dp.label + ' (' + chosenTier.label + ')', talent: dp.talent,
-      r15: dp.r15 * rateMult, r30: widenedRate, r60: dp.r60 * rateMult, days: catDays, skew: catSkew,
+      r15: dp.r15 * rateMult, r30: dp.r30 * rateMult, r60: dp.r60 * rateMult, length: spotLength || "30", rate: widenedRate, days: catDays, skew: catSkew,
       spots, dollars: spots * widenedRate, dayCounts: distributeAcrossDays(spots, catDays, catSkew)
     });
   }
   const wdp = sched.weekend;
-  const weekendRate = wdp ? wdp.r30 * rateMult : 0;
+  const weekendRate = wdp ? rateForLength(wdp, spotLength, rateMult) : 0;
   const weekendDays = wdp ? effectiveDaysForPref(wdp.days, dayPref) : [];
   const weekendSpots = weekendRate > 0 ? Math.floor(weekendDollars / weekendRate) : 0;
   if (weekendSpots > 0 && weekendDays.length > 0){
     rows.push({
-      key:"weekend", label:wdp.label, talent:wdp.talent, r15:wdp.r15*rateMult, r30:weekendRate, r60:wdp.r60*rateMult,
+      key:"weekend", label:wdp.label, talent:wdp.talent, r15:wdp.r15*rateMult, r30:wdp.r30*rateMult, r60:wdp.r60*rateMult, length: spotLength || "30", rate: weekendRate,
       days:weekendDays, skew:null, spots:weekendSpots, dollars:weekendSpots*weekendRate, dayCounts:distributeAcrossDays(weekendSpots, weekendDays, null)
     });
   }
@@ -3882,7 +3993,7 @@ const CONDENSABLE_DAYPARTS = ["morning","midday","afternoon","evening","weekend"
    doesn't run on any of the selected days at this station) for the
    caller to surface next to the schedule, the same way concentrationTrigger
    already does for the automatic modes. */
-function buildCondensedGrid(station, weeklyDollars, dayparts, days, quuMultiplier){
+function buildCondensedGrid(station, weeklyDollars, dayparts, days, quuMultiplier, spotLength){
   const sched = station.schedule;
   const rateMult = quuMultiplier || 1;
   const selectedCats = CONDENSABLE_DAYPARTS.filter(c => Array.isArray(dayparts) && dayparts.includes(c));
@@ -3906,13 +4017,13 @@ function buildCondensedGrid(station, weeklyDollars, dayparts, days, quuMultiplie
       unspent += dollarsPerCat;
       return;
     }
-    const rate30 = dp.r30 * rateMult;
+    const rate30 = rateForLength(dp, spotLength, rateMult);
     const spots = Math.floor(dollarsPerCat / rate30);
     const actualDollars = spots * rate30;
     unspent += (dollarsPerCat - actualDollars);
     if (spots > 0){
       rows.push({
-        key: cat, label: dp.label, talent: dp.talent, r15: dp.r15 * rateMult, r30: rate30, r60: dp.r60 * rateMult,
+        key: cat, label: dp.label, talent: dp.talent, r15: dp.r15 * rateMult, r30: dp.r30 * rateMult, r60: dp.r60 * rateMult, length: spotLength || "30", rate: rate30,
         days: useDays, skew: null, spots, dollars: actualDollars, dayCounts: distributeAcrossDays(spots, useDays, null)
       });
     } else {
@@ -3967,14 +4078,14 @@ function pickVerticalDay(station){
    clear the 20-spot floor to be preferred, since the whole reason to use
    them instead of widened is to buy real frequency the client's own
    daypart couldn't afford. */
-function pickConcentrationMode(station, weeklyDollars, timePref, dayPref, quuMultiplier){
-  const normal = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, null);
-  const widened = buildWidenedGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, quuMultiplier);
+function pickConcentrationMode(station, weeklyDollars, timePref, dayPref, quuMultiplier, spotLength){
+  const normal = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, null, spotLength);
+  const widened = buildWidenedGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, quuMultiplier, spotLength);
   if (widened && widened.totalSpots > 0) return {mode:"widened", grid:widened};
 
-  const fringe = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, "fringe");
-  const horizontal = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, "horizontal");
-  const vertical = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, [pickVerticalDay(station)], quuMultiplier, "vertical");
+  const fringe = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, "fringe", spotLength);
+  const horizontal = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, "horizontal", spotLength);
+  const vertical = buildScheduleGrid(station, weeklyDollars, timePref, dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, [pickVerticalDay(station)], quuMultiplier, "vertical", spotLength);
 
   const candidates = [
     {mode:"fringe", grid:fringe},
@@ -4014,22 +4125,23 @@ function pickConcentrationMode(station, weeklyDollars, timePref, dayPref, quuMul
 function findAlternativeStation(inputs, excludeStationIds, weeklyBudget, quuMultiplier){
   const stations = STATIONS_BY_MARKET[inputs.market];
   if (!stations || weeklyBudget <= 0) return null;
+  const spotLength = inputs.planningLength || "30";
   const scored = stations
     .filter(s => !excludeStationIds.has(s.id))
     .map(s => ({s, score: stationFitScore(s, inputs.targetAge, inputs.genderSkew, inputs)}))
     .sort((a,b) => b.score - a.score);
 
   for (const {s: station} of scored){
-    const maxSpotsAtRos = Math.floor(weeklyBudget / station.rosR30);
+    const maxSpotsAtRos = Math.floor(weeklyBudget / rosRateFor(station, spotLength));
     if (maxSpotsAtRos <= 0) continue;
     const spotsPerWeek = Math.min(maxSpotsAtRos, SCHEDULE_HEALTHY_MAX_SPOTS);
-    const weeklyDollars = spotsPerWeek * station.rosR30;
+    const weeklyDollars = spotsPerWeek * rosRateFor(station, spotLength);
     let grid, concentrationMode = null;
     if (spotsPerWeek <= SCHEDULE_CONCENTRATE_CEILING){
-      const picked = pickConcentrationMode(station, weeklyDollars, inputs.timePref, inputs.dayPref, quuMultiplier);
+      const picked = pickConcentrationMode(station, weeklyDollars, inputs.timePref, inputs.dayPref, quuMultiplier, spotLength);
       grid = picked.grid; concentrationMode = picked.mode;
     } else {
-      grid = buildScheduleGrid(station, weeklyDollars, inputs.timePref, inputs.dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier);
+      grid = buildScheduleGrid(station, weeklyDollars, inputs.timePref, inputs.dayPref, SCHEDULE_HEALTHY_MAX_SPOTS, null, quuMultiplier, null, spotLength);
     }
     if (grid && grid.totalSpots >= SCHEDULE_MIN_VIABLE_SPOTS){
       const bestDaypart = station.dayparts.slice().sort((a,b) => b.r30 - a.r30)[0];
@@ -4058,38 +4170,39 @@ function buildTieredScheduleGrid(station, weeklyDollars, spotsPerWeek, inputs, q
   const belowMinimum = spotsPerWeek < SCHEDULE_MIN_VIABLE_SPOTS;
   const testTier = spotsPerWeek >= SCHEDULE_MIN_VIABLE_SPOTS && spotsPerWeek <= SCHEDULE_TEST_CEILING;
   const maintenanceTier = spotsPerWeek > SCHEDULE_TEST_CEILING && spotsPerWeek <= SCHEDULE_CONCENTRATE_CEILING;
+  const spotLength = inputs.planningLength || "30";
 
   if (inputs.dayPref === "condensed"){
     // Explicit rep choice, not an automatic budget-tier trigger — always
     // honored regardless of spotsPerWeek (that's the whole point: a
     // deliberately condensed, below-the-usual-floor schedule).
-    const grid = buildCondensedGrid(station, weeklyDollars, inputs.condensedDayparts, inputs.condensedDays, quuMultiplier);
+    const grid = buildCondensedGrid(station, weeklyDollars, inputs.condensedDayparts, inputs.condensedDays, quuMultiplier, spotLength);
     if (grid) grid.concentrationModeUsed = "condensed";
     if (grid && grid.notes && grid.notes.length) grid.concentrationTrigger = grid.notes.join(" ").replace(/\.\s*$/, "");
     return grid;
   }
   if (inputs.dayPref === "custom"){
-    return buildScheduleGrid(station, weeklyDollars, inputs.timePref, inputs.dayPref, capSpots, inputs.customDays, quuMultiplier);
+    return buildScheduleGrid(station, weeklyDollars, inputs.timePref, inputs.dayPref, capSpots, inputs.customDays, quuMultiplier, null, spotLength);
   }
   if (testTier || belowMinimum){
-    const picked = pickConcentrationMode(station, weeklyDollars, inputs.timePref, inputs.dayPref, quuMultiplier);
+    const picked = pickConcentrationMode(station, weeklyDollars, inputs.timePref, inputs.dayPref, quuMultiplier, spotLength);
     if (picked.grid) picked.grid.concentrationModeUsed = picked.mode;
     return picked.grid;
   }
   if (maintenanceTier){
-    const normalGrid = buildScheduleGrid(station, weeklyDollars, inputs.timePref, inputs.dayPref, capSpots, null, quuMultiplier);
+    const normalGrid = buildScheduleGrid(station, weeklyDollars, inputs.timePref, inputs.dayPref, capSpots, null, quuMultiplier, null, spotLength);
     const shortFlight = flightWeeks > 0 && flightWeeks < SCHEDULE_MIN_FLIGHT_WEEKS_FOR_BROAD;
     if (normalGrid && normalGrid.totalSpots >= SCHEDULE_MIN_VIABLE_SPOTS && !shortFlight){
       return normalGrid;
     }
-    const picked = pickConcentrationMode(station, weeklyDollars, inputs.timePref, inputs.dayPref, quuMultiplier);
+    const picked = pickConcentrationMode(station, weeklyDollars, inputs.timePref, inputs.dayPref, quuMultiplier, spotLength);
     if (picked.grid){
       picked.grid.concentrationModeUsed = picked.mode;
       picked.grid.concentrationTrigger = shortFlight ? 'short flight window' : "a broad schedule couldn't clear the frequency floor here";
     }
     return picked.grid;
   }
-  return buildScheduleGrid(station, weeklyDollars, inputs.timePref, inputs.dayPref, capSpots, inputs.customDays, quuMultiplier);
+  return buildScheduleGrid(station, weeklyDollars, inputs.timePref, inputs.dayPref, capSpots, inputs.customDays, quuMultiplier, null, spotLength);
 }
 
 /* Standalone "what would THIS station look like on the client's full
@@ -4104,12 +4217,12 @@ function computeSingleStationSchedule(station, inputs, weeklyBudget, quuMultipli
   if (!weeklyBudget || weeklyBudget <= 0){
     return {station, spotsPerWeek:0, weeklyDollars:0, grid:null, insufficient:true};
   }
-  const maxSpotsAtRos = Math.floor(weeklyBudget / station.rosR30);
+  const maxSpotsAtRos = Math.floor(weeklyBudget / rosRateFor(station, inputs.planningLength));
   if (maxSpotsAtRos <= 0){
     return {station, spotsPerWeek:0, weeklyDollars:0, grid:null, insufficient:true};
   }
   const spotsPerWeek = Math.min(maxSpotsAtRos, SCHEDULE_HEALTHY_MAX_SPOTS);
-  const weeklyDollars = spotsPerWeek * station.rosR30;
+  const weeklyDollars = spotsPerWeek * rosRateFor(station, inputs.planningLength);
   const grid = buildTieredScheduleGrid(station, weeklyDollars, spotsPerWeek, inputs, quuMultiplier, flightWeeks);
   const realizedSpots = grid ? grid.totalSpots : spotsPerWeek;
   // See renderStationPlan's identical isCondensed exemption: a manually
@@ -4135,7 +4248,7 @@ function renderStationComparisonSection(market, inputs, weeklyBudget, quuMultipl
   const marketSlug = slugifyForId(market || '');
   let html = '<div class="output-section"><h3>Compare other stations in this market</h3>';
   html += '<div class="data-note" style="margin-bottom:10px;">The recommendation above is the best audience fit this budget can actually support well. Here’s what the same broadcast budget would look like on every other station in this market — useful when a client asks about a specific station by name, or for spotting a budget-increase conversation.</div>';
-  html += '<table class="rate-table"><tr><th>Station</th><th>Format</th><th>:30s/week</th><th>Weekly $</th><th></th></tr>';
+  html += `<table class="rate-table"><tr><th>Station</th><th>Format</th><th>:${inputs.planningLength || "30"}s/week</th><th>Weekly $</th><th></th></tr>`;
   others.forEach(station => {
     const result = computeSingleStationSchedule(station, inputs, weeklyBudget, quuMultiplier, flightWeeks);
     const uid = marketSlug + '_' + station.id;
@@ -4210,37 +4323,58 @@ function toggleManualScheduleTool(uid){
   if (container.innerHTML.trim() === ''){
     const data = window._scheduleToolData[uid];
     if (!data) return;
-    container.innerHTML = renderManualScheduleTool(data.station, data.market, data.grid, uid);
+    container.innerHTML = renderManualScheduleTool(data.station, data.market, data.grid, uid, data.spotLengths);
   } else {
     container.innerHTML = '';
   }
 }
 
-function renderManualScheduleTool(station, market, grid, uidOverride){
+/* Per Sean: sellers/clients sometimes run one commercial length across an
+   entire schedule, sometimes a mix of lengths across different dayparts
+   in the SAME schedule - this tool (which already lets a rep freely
+   hand-adjust spot counts per daypart) is where that per-daypart length
+   choice lives. When only one length is checked on the Broadcast tab,
+   each row just shows that one length (no dropdown needed, nothing new
+   for a rep to think about). When 2+ are checked, every row gets its own
+   length dropdown limited to the checked lengths, defaulting to whatever
+   length the recommendation above was priced at - changing it re-prices
+   that row's rate (and Weekly $) from the SAME real rate card, without
+   touching its spot count. */
+function renderManualScheduleTool(station, market, grid, uidOverride, spotLengths){
   const uid = uidOverride || (slugifyForId(market) + '_' + station.id);
   const keys = ["morning","midday","afternoon","rotator","evening","weekend","ros","overnight"];
+  const lengths = (Array.isArray(spotLengths) && spotLengths.length) ? spotLengths : ["30"];
+  const defaultLength = planningLengthFor(lengths);
   const defaultSpotsByKey = {};
-  if (grid){ grid.rows.forEach(r => { defaultSpotsByKey[r.key] = r.spots; }); }
+  const defaultLengthByKey = {};
+  if (grid){ grid.rows.forEach(r => { defaultSpotsByKey[r.key] = r.spots; defaultLengthByKey[r.key] = r.length || defaultLength; }); }
 
   let html = '<h4 style="margin-top:0; margin-bottom:8px;">Adjust ' + station.name + '\u2019s schedule</h4>';
-  html += '<div class="data-note" style="margin-bottom:10px;">Pre-filled with the recommendation above \u2014 change spot counts for any daypart (rates pull straight from the real rate card), or zero a row out / add to an unused one to build a custom schedule.</div>';
-  html += '<table class="rate-table"><tr><th>Daypart</th><th>Rate/:30</th><th>Spots/week</th><th>Weekly $</th></tr>';
+  html += '<div class="data-note" style="margin-bottom:10px;">Pre-filled with the recommendation above \u2014 change spot counts for any daypart (rates pull straight from the real rate card), or zero a row out / add to an unused one to build a custom schedule.'
+    + (lengths.length > 1 ? ' Each row can also run its own commercial length, independent of the others.' : '') + '</div>';
+  html += '<table class="rate-table"><tr><th>Daypart</th>' + (lengths.length > 1 ? '<th>Length</th>' : '') + '<th>Rate</th><th>Spots/week</th><th>Weekly $</th></tr>';
   let runningTotal = 0;
   keys.forEach(k => {
     const dp = station.schedule[k];
     if (!dp) return;
     const spots = defaultSpotsByKey[k] || 0;
-    const rate = dp.r30 || 0;
+    const rowLength = defaultLengthByKey[k] || defaultLength;
+    const rate = rateForLength(dp, rowLength, 1);
     const lineTotal = spots * rate;
     runningTotal += lineTotal;
+    const lengthCell = lengths.length > 1
+      ? `<td><select id="manLength_${uid}_${k}" data-r15="${dp.r15||0}" data-r30="${dp.r30||0}" data-r60="${dp.r60||0}" onchange="recomputeManualSchedule('${uid}')">`
+        + lengths.map(l => `<option value="${l}"${l === rowLength ? ' selected' : ''}>:${l}</option>`).join('') + `</select></td>`
+      : '';
     html += `<tr>
       <td>${dp.label}</td>
-      <td>$${formatMoney(rate)}</td>
-      <td><input type="number" min="0" value="${spots}" style="width:70px;" id="manSpots_${uid}_${k}" data-rate="${rate}" oninput="recomputeManualSchedule('${uid}')"></td>
+      ${lengthCell}
+      <td id="manRate_${uid}_${k}">$${formatMoney(rate)}</td>
+      <td><input type="number" min="0" value="${spots}" style="width:70px;" id="manSpots_${uid}_${k}" data-r15="${dp.r15||0}" data-r30="${dp.r30||0}" data-r60="${dp.r60||0}" data-default-length="${rowLength}" oninput="recomputeManualSchedule('${uid}')"></td>
       <td id="manLine_${uid}_${k}">$${Math.round(lineTotal).toLocaleString()}</td>
     </tr>`;
   });
-  html += `<tr style="font-weight:600;"><td colspan="3">Total weekly</td><td id="manTotal_${uid}">$${Math.round(runningTotal).toLocaleString()}</td></tr>`;
+  html += `<tr style="font-weight:600;"><td colspan="${lengths.length > 1 ? 4 : 3}">Total weekly</td><td id="manTotal_${uid}">$${Math.round(runningTotal).toLocaleString()}</td></tr>`;
   html += '</table>';
   const marketSlug = slugifyForId(market).replace(/'/g, "\\'");
   const stationIdSafe = String(station.id).replace(/'/g, "\\'");
@@ -4254,11 +4388,15 @@ function recomputeManualSchedule(uid){
   const rowInputs = document.querySelectorAll('input[id^="manSpots_' + uid + '_"]');
   let total = 0;
   rowInputs.forEach(inp => {
+    const key = inp.id.slice(('manSpots_' + uid + '_').length);
+    const lengthSelect = document.getElementById('manLength_' + uid + '_' + key);
+    const length = lengthSelect ? lengthSelect.value : (inp.dataset.defaultLength || "30");
+    const rate = parseFloat(inp.dataset['r' + length]) || 0;
     const spots = parseInt(inp.value, 10) || 0;
-    const rate = parseFloat(inp.dataset.rate) || 0;
     const lineTotal = spots * rate;
     total += lineTotal;
-    const key = inp.id.slice(('manSpots_' + uid + '_').length);
+    const rateEl = document.getElementById('manRate_' + uid + '_' + key);
+    if (rateEl) rateEl.textContent = '$' + formatMoney(rate);
     const lineEl = document.getElementById('manLine_' + uid + '_' + key);
     if (lineEl) lineEl.textContent = '$' + Math.round(lineTotal).toLocaleString();
   });
@@ -4795,7 +4933,7 @@ const CONCENTRATION_MODE_EXPLANATIONS = {
   condensed: "spend was placed ONLY in the specific daypart(s) and day(s) you selected, to dominate frequency in that exact window rather than spread across the whole week - a deliberate choice, not a fallback"
 };
 
-function renderStationPlan(stationPlan, competitive, grids, market, flightStart, flightEnd, alternativeStation, weeksPerMonth){
+function renderStationPlan(stationPlan, competitive, grids, market, flightStart, flightEnd, alternativeStation, weeksPerMonth, planningLength){
   if (!stationPlan) return '<div class="note-box">No live station or rate data loaded for this market yet.</div>';
   if (!stationPlan.plan.length) return `<div class="note-box">The radio budget at this level doesn't clear the minimum viable flight (${SCHEDULE_MIN_VIABLE_SPOTS} spots/week) on any station. Consider raising the budget.</div>`;
   const wpm = weeksPerMonth || 4.33;
@@ -4809,7 +4947,8 @@ function renderStationPlan(stationPlan, competitive, grids, market, flightStart,
   const oa = stationPlan.overnightAddon;
   if (oa){ mixItems.push({label: oa.station.name + ' (overnight)', value: oa.weeklyDollars}); }
   let html = renderMixChart("Weekly broadcast mix", mixItems);
-  html += '<table class="rate-table"><tr><th>Station</th><th>Format</th><th>:30s / week (ROS)</th><th>Weekly $</th><th></th></tr>';
+  const planLenLabel = ':' + (planningLength || '30');
+  html += `<table class="rate-table"><tr><th>Station</th><th>Format</th><th>${planLenLabel}s / week (ROS)</th><th>Weekly $</th><th></th></tr>`;
   const concentrationNotes = [];
   let anyInsufficient = false;
   stationPlan.plan.forEach((p, i) => {
@@ -4907,12 +5046,17 @@ function renderStationPlan(stationPlan, competitive, grids, market, flightStart,
 function renderScheduleGrid(stationName, grid){
   if (!grid || !grid.rows.length) return '<div class="note-box">Budget for this station is too small to break into a detailed daypart placement.</div>';
   const dayCols = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  // Every row in an auto-generated grid shares the same "planning length"
+  // (see planningLengthFor) - use the first row's to label the rate
+  // column honestly, rather than a hardcoded ":30 Rate" that would
+  // mislabel a :15 or :60 schedule.
+  const gridLength = grid.rows[0].length || "30";
   let html = `<p style="font-weight:600; color:var(--navy); margin:14px 0 6px;">${stationName} — suggested weekly placement</p>`;
-  html += '<table class="rate-table"><tr><th>Daypart</th><th>Talent</th><th>:30 Rate</th>';
+  html += `<table class="rate-table"><tr><th>Daypart</th><th>Talent</th><th>:${gridLength} Rate</th>`;
   dayCols.forEach(d => html += `<th style="text-align:center;">${d}</th>`);
   html += '<th>Row $/wk</th></tr>';
   grid.rows.forEach(r => {
-    html += `<tr><td>${r.label}</td><td>${r.talent}</td><td>$${formatMoney(r.r30)}</td>`;
+    html += `<tr><td>${r.label}</td><td>${r.talent}</td><td>$${formatMoney(r.rate != null ? r.rate : r.r30)}</td>`;
     dayCols.forEach(d => { const count = r.dayCounts[d]; html += `<td style="text-align:center;">${count ? count : '\u2013'}</td>`; });
     html += `<td>$${Math.round(r.dollars).toLocaleString()}</td></tr>`;
   });
@@ -5147,13 +5291,24 @@ function getBroadcastInputs(){
     currentMarketingChannels: Array.from(document.querySelectorAll('.bCurrentMarketingCheck:checked')).map(el => el.value),
     goals: document.getElementById('bGoals').value.trim() || "not specified",
     staffStatus: document.getElementById('bStaffStatus').value,
-    addQuu: document.getElementById('bAddQuu').checked
+    addQuu: document.getElementById('bAddQuu').checked,
+    // Commercial length(s) this objective is willing to run - which one(s)
+    // actually price the schedule is resolved by planningLengthFor below.
+    // Falls back to [":30"] if somehow nothing is checked (shouldn't
+    // happen - one box starts pre-checked - but a schedule needs SOME
+    // length to price against).
+    spotLengths: (function(){
+      const checked = Array.from(document.querySelectorAll('.bSpotLengthCheck:checked')).map(el => el.value);
+      return checked.length ? checked : ["30"];
+    })(),
+    get planningLength(){ return planningLengthFor(this.spotLengths); }
   };
 }
 
 async function callClaudeBroadcast(inputs, stationPlan, matchedIdeas){
+  const planningLengthLabel = ":" + (inputs.planningLength || "30");
   const stationText = stationPlan && stationPlan.plan.length ? stationPlan.plan.map(p =>
-    `${p.station.name} (${p.station.format}, median age ${p.station.medianAge}, ${p.station.genderF}% female/${p.station.genderM}% male): ~${p.spotsPerWeek} :30s/week, best-fit sponsorable daypart is ${p.bestDaypart.show} with ${p.bestDaypart.talent} (${p.bestDaypart.label})`
+    `${p.station.name} (${p.station.format}, median age ${p.station.medianAge}, ${p.station.genderF}% female/${p.station.genderM}% male): ~${p.spotsPerWeek} ${planningLengthLabel}s/week, best-fit sponsorable daypart is ${p.bestDaypart.show} with ${p.bestDaypart.talent} (${p.bestDaypart.label})`
   ).join("; ") : "no station data available for this market";
 
   const suggestedTalent = stationPlan && stationPlan.plan.length
@@ -5259,7 +5414,7 @@ async function generateBroadcast(){
          always claiming "not enough". */
       const chosenIds = new Set(stationPlan.plan.map(p => p.station.id));
       const otherStations = (STATIONS_BY_MARKET[inputs.market] || []).filter(s => !chosenIds.has(s.id));
-      const couldFundAnother = !stationPlan.manual && otherStations.some(s => Math.floor(stationPlan.leftoverWeekly / s.rosR30) >= SCHEDULE_MIN_VIABLE_SPOTS);
+      const couldFundAnother = !stationPlan.manual && otherStations.some(s => Math.floor(stationPlan.leftoverWeekly / rosRateFor(s, inputs.planningLength)) >= SCHEDULE_MIN_VIABLE_SPOTS);
       leftoverNote = couldFundAnother
         ? `<div class="attention-note" style="margin-bottom:10px;">*You have about $${leftoverMonthly.toLocaleString()}/month of room left in this budget — enough to fund a real (20+ spot/week) schedule on another station in this market, but the auto-recommend concentrates budget on one station at a time by design rather than splitting it automatically. Worth reviewing manually if the client would rather have a second station than the extra room left here.</div>`
         : `<div class="attention-note" style="margin-bottom:10px;">*You have about $${leftoverMonthly.toLocaleString()}/month of room left in this budget — not enough to add meaningful frequency on another station, so it's left unspent above rather than diluted into a token spot count. Worth considering for prizing on a station contest or event sponsorship, or redirecting toward strengthening the digital plan instead.</div>`;
@@ -5318,10 +5473,10 @@ async function generateBroadcast(){
       ${budgetSanityWarning}
       ${stationPlan && stationPlan.manual ? '<div class="data-note" style="margin-bottom:8px;">Manual station selection — budget split evenly across the stations you picked.</div>' : ''}
       ${renderQuuAddon(stationPlan, inputs.addQuu)}
-      ${renderStationPlan(stationPlan, inputs.competitive, grids, inputs.market, inputs.flightStart, inputs.flightEnd, alternativeStation, weeksPerMonth)}
+      ${renderStationPlan(stationPlan, inputs.competitive, grids, inputs.market, inputs.flightStart, inputs.flightEnd, alternativeStation, weeksPerMonth, inputs.planningLength)}
       ${stationPlan ? stationPlan.plan.map((p, i) => {
         const scheduleUid = slugifyForId(inputs.market) + '_' + p.station.id;
-        window._scheduleToolData[scheduleUid] = { station: p.station, market: inputs.market, grid: grids[i] };
+        window._scheduleToolData[scheduleUid] = { station: p.station, market: inputs.market, grid: grids[i], spotLengths: inputs.spotLengths };
         return renderScheduleGrid(p.station.name, grids[i]) + `<div class="note-box" style="margin-top:6px; margin-bottom:18px;">${stationFitStatement(p.station, inputs)}</div>${renderFormatInsights(p.station, inputs.industry)}` + renderManualScheduleToggle(scheduleUid, p.station.name);
       }).join("") : ""}
     </div>
