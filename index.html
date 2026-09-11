@@ -96,6 +96,9 @@
   .format-insights-source{ display:block; margin-top:4px; font-size:11px; font-style:italic; color:var(--text-muted); }
   .format-insights-positioning{ margin-top:6px; padding-top:6px; border-top:1px solid #C9DBD9; }
   .compliance-warning{ font-size:12.5px; color:#5C1414; background:#FBE5E5; border:1px solid #E8A0A0; border-left:3px solid #A32D2D; border-radius:6px; padding:8px 10px; margin-top:8px; line-height:1.5; }
+  .note-box ul{ margin:4px 0 2px; padding-left:18px; }
+  .note-box li{ margin-bottom:4px; line-height:1.4; }
+  .note-box li:last-child{ margin-bottom:0; }
 
   /* Marketing mix quick-read chart */
   .mix-chart-wrap{ margin-bottom:16px; }
@@ -139,10 +142,26 @@
      only during print/PDF export per the print-only rule above), so no
      separate screen-preview styling is needed. */
   @media print{
-    .proposal-page{ page-break-after:always; }
+    .proposal-page{ page-break-after:always; box-sizing:border-box; min-height:11in; }
     .proposal-page:last-child{ page-break-after:auto; }
   }
-  .proposal-page{ padding:32px 6px; font-family:Georgia,serif; color:#222; }
+  .proposal-page{ padding:36px 40px; font-family:'Source Sans 3', sans-serif; color:var(--text); font-size:13.5px; line-height:1.6; }
+  /* Branded proposal slide styling - scoped entirely to .proposal-page so
+     none of this touches the live app's own .note-box/.promo-card/etc.
+     styling used on the Broadcast/Digital tabs. Mirrors the console's own
+     existing brand palette (navy/gold/teal, Oswald headers) rather than
+     inventing a new one, so the generated proposal feels like it came from
+     the same tool. */
+  .prop-header{ background:var(--navy); color:#fff; margin:-36px -40px 26px; padding:26px 40px 20px; border-bottom:4px solid var(--gold); }
+  .prop-kicker{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
+  .prop-title{ font-family:'Oswald', sans-serif; font-weight:700; font-size:24px; text-transform:uppercase; letter-spacing:0.3px; margin:0; }
+  .prop-subtitle{ font-size:12.5px; color:#C9CEDA; margin-top:6px; }
+  .prop-field-label{ font-family:'Oswald', sans-serif; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--navy); margin:18px 0 3px; border-bottom:2px solid var(--gold); display:inline-block; padding-bottom:2px; }
+  .prop-field-value{ margin:4px 0 0; }
+  .prop-card{ background:#FBFAF6; border:1px solid var(--border); border-left:4px solid var(--teal); border-radius:6px; padding:12px 14px; margin-bottom:10px; }
+  .prop-card .prop-card-title{ font-weight:700; color:var(--navy); margin-bottom:3px; }
+  .prop-card.gold{ border-left-color:var(--gold); }
+  .prop-pill{ display:inline-block; background:var(--navy); color:#fff; font-size:11px; font-weight:600; padding:3px 10px; border-radius:12px; margin:0 6px 6px 0; }
   .suggestion-box{ background:#EFEAE0; border-radius:8px; padding:14px 16px; margin-top:12px; font-size:13.5px; }
   footer{ text-align:center; color:var(--text-muted); font-size:12px; padding:20px 0 0; }
 </style>
@@ -369,7 +388,7 @@
         <div class="goal-grid" id="bCurrentMarketingChecks" style="max-height:220px; overflow-y:auto; padding-right:4px;"></div>
       </div>
       <div class="field"><label>Additional notes on current marketing <span class="hint">Optional — what's working, what's not</span></label><textarea id="bCurrentMarketing" placeholder="e.g. Cable was cut last year, mostly relies on word of mouth now"></textarea></div>
-      <div class="field"><label>Goal by 12th month of campaign</label><textarea id="bGoals" placeholder="e.g. Increase monthly unit sales by 20%"></textarea></div>
+      <div class="field"><label>Campaign goal(s) <span class="hint">In the rep's or client's own words — short-term and long-term goals are both welcome</span></label><textarea id="bGoals" placeholder="e.g. Short-term: fill 10 appointment slots this month. Long-term: become the most-recalled brand in our category within 12 months."></textarea></div>
       <div class="field"><label>Staff / team capacity</label>
         <select id="bStaffStatus"><option value="Adequate">Adequate</option><option value="Understaffed">Understaffed</option><option value="Needs performance improvement">Needs performance improvement</option><option value="Needs morale boost">Needs morale boost</option></select>
       </div>
@@ -464,6 +483,8 @@
       <label>Peak Season Promotions <span class="hint">Optional — check any that fit this client, then edit the text below to make it specific to them. Shown for the industry selected above and whatever season it is right now.</span></label>
       <div id="promoChecklist"></div>
     </div>
+    <button class="generate" id="planDiagnosticBtn" style="width:100%; margin-top:10px; background:#555; color:#fff;" onclick="printDiagnosticPdf()">Print Diagnostic PDF</button>
+    <div class="hint" style="margin-top:4px; text-align:center;">Every answer from the diagnostic form — audience, profile, competition, current marketing, peak season, goals, and challenges — on one printable page for a manager's review. Works even before anything's added to this plan.</div>
     <button class="generate" id="planExportBtn" style="width:100%; margin-top:10px;" onclick="exportPlanToPdf()">Export Plan to PDF</button>
     <button class="generate" id="planProposalBtn" style="width:100%; margin-top:8px; background:var(--navy); color:#fff;" onclick="generateProposal()">Generate Client Proposal</button>
     <div class="hint" style="margin-top:6px; text-align:center;">A full branded, client-ready presentation built from everything in this plan.</div>
@@ -970,40 +991,55 @@ const STATIONS_BY_MARKET = {
     }
   ],
 
-  /* Poplar Bluff, MO, from Poplar_Bluff_rates_and_schedules.xlsx (rate card)
-     and Poplar_Bluff_Station_info.pptx (format/on-air/target demo). The
-     pptx's text didn't preserve which format block belonged to which
-     station logo, so I mapped them by their actual on-slide position
-     (left to right) rather than trust extracted reading order — confirmed:
-     KKLR "Clear 94"=Country, KJEZ "Z95.5 The Bone"=Rock, KLSC "Shuffle
-     92.9"=Adult Hits, KWOC 93.3/930=Talk/News/Local Sports.
+  /* Poplar Bluff, MO. Rates rebuilt from Poplar_Bluff_Quick_Rates_new.xlsx
+     (supplied 2026-08-20 to replace the original
+     Poplar_Bluff_rates_and_schedules.xlsx, whose daypart windows were
+     inconsistent — see caveat 6). Format/on-air/target demo info still
+     comes from Poplar_Bluff_Station_info.pptx; the pptx's text didn't
+     preserve which format block belonged to which station logo, so I
+     mapped them by their actual on-slide position (left to right) rather
+     than trust extracted reading order — confirmed: KKLR "Clear 94"=
+     Country, KJEZ "Z95.5 The Bone"=Rock, KLSC "Shuffle 92.9"=Adult Hits,
+     KWOC 93.3/930=Talk/News/Local Sports.
 
      CAVEATS — confirm these before relying on them for real quotes:
      1) NO NIELSEN/SCARBOROUGH DATA for this market either — same
         estimation approach as Southern Illinois and Cape Girardeau.
-     2) WEEKEND RATES: this rate card gives 4 weekend-related rows per
-        station — a combined "Sat-Sun" rate, PLUS separate Saturday-only
-        and Sunday-only rates for that same window, PLUS a separate
-        evening (8pm-12am) rate. The combined row looks like a stale
-        duplicate of the Sat/Sun split (it doesn't match their average), so
-        I ignored it and built the single "weekend" rate below as a
-        duration-weighted blend of just the Saturday, Sunday, and weekend-
-        evening rows. Flag if the combined row was actually meant to be
-        used instead.
-     3) DAYPART TIMES DON'T FULLY MATCH THE ON-AIR TALENT LIST for 3 of the
-        4 stations, the same kind of gap seen in Southern Illinois/Cape
-        Girardeau. Where a named host's on-air time only partially overlaps
-        a priced rate block, I tagged that block with whichever host covers
-        the most hours of it; slots with no named host at all (mostly
-        evenings, and a midday gap on KKLR) use a generic placeholder.
-        PLEASE CONFIRM the real hosts for any slot marked "(assumed/dominant,
-        see caveat 3)" below.
-     4) KKLR's weekend specialty shows (Shawn Mannon on Saturdays, Crook &
+     2) WEEKEND RATES: the new rate card gives 4 separate weekend windows
+        per station (Sat-Sun 5am-10am, 10am-3pm, 3pm-8pm, 8pm-12am,
+        spanning 5/5/5/4 hours). Per Sean's request that all markets share
+        the same standard "Sat/Sun 6am-7pm" weekend window, these 4 rows
+        are blended into that single rate below, duration-weighted:
+        round(sum(rate_i x hours_i) / total_hours). Same methodology
+        already used for Hampton Roads' weekend rate.
+     3) STANDARDIZED DAYPART WINDOWS: at Sean's request (2026-09-10, after
+        he flagged that Poplar Bluff's schedules "don't make sense" and
+        front-loaded the week), every station below now uses the same
+        windows as the rest of the console: M-F 6am-10am / 10am-3pm /
+        3pm-7pm / 7pm-12am (evening runs Mon-Sun per the new rate card's
+        own "M-Sun 7pm-Mid" label), a Broad Rotator (M-F 5am-8pm), Sat/Sun
+        6am-7pm, and Mon-Sun 6am-12am ROS. This replaces the prior
+        non-standard 6am-8am/8am-3pm/3pm-8pm/8pm-Mid windows, and the new
+        rate card's own row labels match these windows directly (no
+        talent-overlap guessing needed this time).
+     4) TALENT NAMES CARRIED OVER, NOT RE-VERIFIED: the new rate card has
+        no talent/host information at all (rates only), so each slot below
+        keeps the same host name it had under the old (non-standard)
+        windows, remapped 1:1 to the new standardized windows in the same
+        order (morning host stays morning host, etc). PLEASE CONFIRM these
+        assignments are still correct for the new, wider windows — this is
+        a best-guess carry-over, not source data.
+     5) KKLR's weekend specialty shows (Shawn Mannon on Saturdays, Crook &
         Chase Sunday 4-8pm) aren't reflected as a single "talent" name in
         the weekday dayparts above — they're noted in the weekend row's
         label instead, since the schedule model doesn't support different
         weekend hosts by day.
-     5) FORMAT KEY REUSE: KKLR's format is tagged "New Country" (its own
+     6) ROS DAYS BUG FIXED: KLSC and KWOC previously had their ROS row
+        restricted to Mon-Fri only ("Mon-Fri 5am-12am (Prime ROS)"), unlike
+        KKLR/KJEZ which were already correctly Mon-Sun. The new rate card
+        labels every station's ROS row "Mon-Sun T.A.P", so all 4 stations
+        are now Mon-Sun, matching Sean's requested standard.
+     7) FORMAT KEY REUSE: KKLR's format is tagged "New Country" (its own
         sheet just says "Country") and KWOC's is tagged "News Talk" (its
         sheet says "Talk/News/Local Sports") so both inherit the Gold
         Digger insights already built for those formats elsewhere, since
@@ -1017,21 +1053,21 @@ const STATIONS_BY_MARKET = {
       logo:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASAAAACMCAMAAADr9ISTAAACWFBMVEX64RTs1Bz13Ba/IC4gRJj//wS/IC5HcEwgRJj//wD10xb73xPw2Bn64BL//wD//wj96BL54BT32BT74RP/8gr//gz//wD73BP/9gH84BL5vwL//wL//wX//wT//wf84BMgRJn74RPlziH85RH/+AUgRZn84BK4ADz74RTzqQX74hL54xfVfhv94hUjRpn74BHAIC4hRZn74BP94w784hLAtTz97wouTpL94hLBIy784BIqS5T64BQ7V4usqEfBJC7CKC3wwxjBIS82VI4lR5f84RLELyxqeG+NklsxUJDLRyrcfyLGNCxgcXX94hL94hLfiCDjlx///wKamlT84hLrsBooSpXSXCf94xL94xP95BLUZSXKQyrDKi3HOCwzUo9SZ31EXYXGMyzBIC/95BJ7hmTXbSRAWof95RI6P4v94hL84RTIOyv94xL94hLZdiNYa3r94hLopBzELS394xL94xH94xLEKy7CJi795hLPwjL84hP84RL94hJJYYInSZaEimD94xLMTCl0f2pNZIDQVyf95hP95hPKQCr94hLOUSi7EjEdQpwgQZ7ksxg5RpMPOKTBIi4gRJrpmh/AHi/BHy+mKELCIjAbQJ7AIS4hRJjxzhv56BbLLyy5sD/83BQlSJcXPqDEMC2TflnPUClecHmWllDvuBn///+JjFnadSMgRJm/IC/JHzL/7BMfRaIfRZ0fRqMfRqTGHzH/8RT/7hQfRaDBIC/+4hMgRJz/5hP/6hPFHzDDIDD/7xP94hPPHjP/6BP/5BPMIjL/9BIiSaSCimLbbSbNraRAAAAAq3RSTlMzNjT9/CT+AP4BNvw1NgMoMTI1NC8sAjQE+gQlKScr/v4NNxot+vgBJgMtCAIW7ir79SER6kEdyeHt8tIwqUfn1zr0s+fYwGxUwY1Wr3VjslBKH05rQNpxUlmaaZTRqLuFmLf4i19ioNEDPISgq3tcfZNEx8BEpMzg7jx0u0qR4VrHhmWKePT6mc1+/sMtBhL7a5j6uIscOHdXVfwzCPoz//3+Lf74vvsBhshNTOiPAAAgAElEQVR42syYW08iyxaAOxLdoYnQtlwEWkinjcPFDgQIAWOikMCDGpCJRsDLgxJiZGSC4mVn5EGTcasP/oJJ9h+geQGi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",
       medianAge:39, genderF:50, genderM:50, /* ESTIMATED — station sheet says "Adults 25-54", no stated gender skew */
       ageComp:{"12-17":1, "18-24":8, "25-34":22, "35-44":26, "45-54":24, "55-64":14, "65+":5}, /* ESTIMATED, see caveat 1 */
-      rosR30:16,
+      rosR30:31,
       dayparts:[
-        {label:"M-F 6am-10am", talent:"Karley", show:"Karley", r30:30},
-        {label:"M-F 8am-3pm (dominant, see caveat 3)", talent:"Karley", show:"Karley", r30:24},
-        {label:"M-F 2pm-6pm", talent:"Glenn Johnson", show:"Glenn Johnson", r30:24},
-        {label:"M-F 8pm-Mid (no named host, see caveat 3)", talent:"KKLR Evenings", show:"KKLR Evenings", r30:15}
+        {label:"M-F 6am-10am", talent:"Karley", show:"Karley", r30:50},
+        {label:"M-F 10am-3pm", talent:"Karley", show:"Karley", r30:50},
+        {label:"M-F 3pm-7pm", talent:"Glenn Johnson", show:"Glenn Johnson", r30:50},
+        {label:"M-F 7pm-12am (no named host, see caveat 4)", talent:"KKLR Evenings", show:"KKLR Evenings", r30:25}
       ],
       schedule:{
-        morning:  {label:"M-F 6am-8am", talent:"Karley", r15:0, r30:30, r60:30, days:["Mon","Tue","Wed","Thu","Fri"]},
-        midday:   {label:"M-F 8am-3pm (dominant: Karley, see caveat 3)", talent:"Karley", r15:0, r30:24, r60:24, days:["Mon","Tue","Wed","Thu","Fri"]},
-        afternoon:{label:"M-F 3pm-8pm (dominant: Glenn Johnson, see caveat 3)", talent:"Glenn Johnson", r15:0, r30:24, r60:24, days:["Mon","Tue","Wed","Thu","Fri"]},
-        rotator:  {label:"M-F 5am-8pm", talent:"Prime Rotator", r15:0, r30:22, r60:22, days:["Mon","Tue","Wed","Thu","Fri"]},
-        evening:  {label:"M-F 8pm-Mid (no named host, see caveat 3)", talent:"KKLR Evenings", r15:0, r30:15, r60:15, days:["Mon","Tue","Wed","Thu","Fri"]},
-        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:0, r30:22, r60:22, days:["Sat","Sun"]},
-        ros:      {label:"Mon-Sun T.A.P (ROS)", talent:"ROS", r15:0, r30:16, r60:16, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        morning:  {label:"M-F 6am-10am", talent:"Karley", r15:0, r30:50, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
+        midday:   {label:"M-F 10am-3pm", talent:"Karley", r15:0, r30:50, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
+        afternoon:{label:"M-F 3pm-7pm", talent:"Glenn Johnson", r15:0, r30:50, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
+        rotator:  {label:"M-F 5am-8pm", talent:"Prime Rotator", r15:0, r30:50, r60:50, days:["Mon","Tue","Wed","Thu","Fri"]},
+        evening:  {label:"M-Sun 7pm-Mid (no named host, see caveat 4)", talent:"KKLR Evenings", r15:0, r30:25, r60:25, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:0, r30:28, r60:28, days:["Sat","Sun"]},
+        ros:      {label:"Mon-Sun 6am-12am (ROS)", talent:"ROS", r15:0, r30:31, r60:31, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
       overnight: {label:"M-Sun 12am-6am", talent:"Overnight", r15:1, r30:1, r60:1, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}
       }
     },
@@ -1040,21 +1076,21 @@ const STATIONS_BY_MARKET = {
       logo:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIwAAACMCAMAAACZHrEMAAADAFBMVEVHcEwBAgL+++XRz73//+vp6d/+/eYfHx8AAAANDQwCAwQgIBu1taYDBQUIBQX39d9fX1clJyQREREEBQUOEBAFBgYQEREDBAQLDg8HCQoCAwMICQgHBwcCAwNWWFEEBQUDBQUBAQEHBwcHCQkAAAADBAUWFxf5+OL2893///n+//F0dGrFxLM5NjM9PTkoKSYZGxkIDAxBQTzZ4MpQUEqUk4YAAAAAAAAwMS4VGRZiYlrLenNMTEYuLixmZl16em82ODQ0NjOIh3xycmljaFxubmUvMC7w8Nvz8dvw7tny8Nry8dztJCv//+r//ufrIyr39d7y79n18938+uP39uD5+eLW1MH+Jy+Vlor//+jxJi0BAgPh3sr8IyuQJ47k4MzwHST69+GmpZidm466uaqTMZeqqpzn59Lv7dj3Jy5qamKeopRTUkuGGx3DwbCPj4PnIyiysaHm5M/r7NbMy7mYOZvZ2MV/f3XJx7Z7enBsb2bV1sTt6NYPDw9JSELoGiH+//GLIYypr6D6/+aJG4mlGR1NT0m3GR/eFh73/OQfHx6eRZ2VGx5kDxKRLJLe2sjSFRtjZ17Cu62tuaeMjIDZHyPCFRxAQjxdLSxUPjpiNTQsLyzn8dukXaD4HCV+PDnGob52Cg+GhXq4IybqTFW0DhRnJyfjz9KwNziKiX2HY1zVsaKlDBKnTp96Ul6fUJx0fXKig6LKsL18h3vRP0CFFIXHTVbX5M4yCgtlICGJIyOuZ6qIDRJLFRawXlvIUmtwZWBdVU92HyFCLCrgv9O9ybbo19e0wK6Gc2rezbyBjYCfeG/Bo5aSV1OPODaRREDv9+EnERG7VnPD0LzJJCWxT3yBgni6jbDVu8rz8eG6gbN1Tknw49ZOBATXwbhiR0J7MSyjRko8GhmqU6zwNzx/Kyv6PUCfSZq2VYu1kIWymayDR4uXDRPbLjBOODbdppmQQp+Ic4W1erDcWHTMWn6Lno+mJSbl8tTPhHvfkom4h33JXlx4PnCbAAcAAeRHcEx9bRiWAAABAHRSTlMA0P7+/QL/AgEDcgn+P+r8/v4OVRS8J4gaIH6UX0r+4LPzNiz6nv78/v77/v7+/uWuaOD+2/2ow5nJy/6t0OnZrMvb5Z/G+P////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8AD1xzIwAADAlJREFUeNrslwdQU2kewJMQXhJAmqJYQURAFBtnG92d27mdM+8J4b30QCqQ8CiBAIbeq0jviCCwVAFBEBCl2HvDsvbeu9tu693MfQno3u3eXbw7b+5u5v0GMmGSPH7vX7+QSAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBP/n0BkMhjGN9j9hQn/77L/uoovHlEkm03671IH0/rGh/0fE6STG5GnmWQujZMFLTI3p7xlK8D4ag0H7sEY0Gn2qvU8QH6JyLCxU9u8VmnEDU/0jg/4hw0IycUxUURUwjGEKi6TZJMZ7pNV61ioy2Xz+rNnzpugC9IF8GKTpNo5boyAcYyIwWxapMjEswyAtM/eJK4kWGkVXbrWbYavTo3+ILiLZkn2cgAuTibApULjYcplBGRpphpWwjMqiiihUDjPKcsnqSaa68PxbQmCwkEgOSxLd4nk6FzTiMv8zatYMQzIM0uTN4VQIhnEYgzEmj6IoiV4+0/RtV/5rJuP9bBcfKoNgJpBh+VmaGSEf2xq6JJ1EjnNN0H1EDwajYpWf32/sZ0z9p8NDp9N0ETEGT2dPnr/ESkhRsPUXxmIiLUOdxZ/oX/qHLtbm4Zx3LrrbQDkBK4z8sxxtJulv8+/76MbB+It6i3cpmGQys3KFrwzmIBiiuyI7wN9oTnhM0Ey64Sz5xFAwEBEmhk3YwCgWQaWGz0m0meZg+rbb6bS3W4ZBAxFjGE+EnEYHf4xfy5RhO2vWSvI6y0VRTCoVZWLvbhAkS+ZcZrCZaKSpjpc9cUQhYidEsJEJHSYbxiBWlNDKiTxtnu5dxjT9CPvrz1qDOTAeeMY8E5P5K+2WzA3xu1yIUJwtMBxGkJ+jrdOiGNkYrEIGySSOiqOLVGjAhMgEMI5SEmQlsW5rloF/SjKeTtJXJWC6w4z5qz9Zs3S5FZlst3LVTBv7j6ycKrcHGeEB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",
       medianAge:40, genderF:35, genderM:65, /* ESTIMATED — station sheet says "Men 25-54" */
       ageComp:{"12-17":1, "18-24":9, "25-34":24, "35-44":27, "45-54":23, "55-64":12, "65+":4}, /* ESTIMATED, see caveat 1 */
-      rosR30:8,
+      rosR30:21,
       dayparts:[
-        {label:"M-F 6am-10am", talent:"Randy Bailey", show:"Randy Bailey", r30:12},
-        {label:"M-F 10am-2pm", talent:"Iliana Zuniga", show:"Iliana Zuniga", r30:12},
-        {label:"M-F 2pm-6pm", talent:"Chris Berger", show:"Chris Berger", r30:12},
-        {label:"M-F 8pm-Mid (no named host, see caveat 3)", talent:"The Bone Evenings", show:"The Bone Evenings", r30:8}
+        {label:"M-F 6am-10am", talent:"Randy Bailey", show:"Randy Bailey", r30:34},
+        {label:"M-F 10am-3pm", talent:"Iliana Zuniga", show:"Iliana Zuniga", r30:34},
+        {label:"M-F 3pm-7pm", talent:"Chris Berger", show:"Chris Berger", r30:34},
+        {label:"M-F 7pm-12am (no named host, see caveat 4)", talent:"The Bone Evenings", show:"The Bone Evenings", r30:19}
       ],
       schedule:{
-        morning:  {label:"M-F 6am-8am", talent:"Randy Bailey", r15:0, r30:12, r60:12, days:["Mon","Tue","Wed","Thu","Fri"]},
-        midday:   {label:"M-F 8am-3pm (dominant: Iliana Zuniga, see caveat 3)", talent:"Iliana Zuniga", r15:0, r30:12, r60:12, days:["Mon","Tue","Wed","Thu","Fri"]},
-        afternoon:{label:"M-F 3pm-8pm (dominant: Chris Berger, see caveat 3)", talent:"Chris Berger", r15:0, r30:12, r60:12, days:["Mon","Tue","Wed","Thu","Fri"]},
-        rotator:  {label:"M-F 5am-8pm", talent:"Prime Rotator", r15:0, r30:12, r60:12, days:["Mon","Tue","Wed","Thu","Fri"]},
-        evening:  {label:"M-F 8pm-Mid (no named host, see caveat 3)", talent:"The Bone Evenings", r15:0, r30:8, r60:8, days:["Mon","Tue","Wed","Thu","Fri"]},
-        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:0, r30:8, r60:8, days:["Sat","Sun"]},
-        ros:      {label:"Mon-Sun T.A.P (ROS)", talent:"ROS", r15:0, r30:8, r60:8, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        morning:  {label:"M-F 6am-10am", talent:"Randy Bailey", r15:0, r30:34, r60:34, days:["Mon","Tue","Wed","Thu","Fri"]},
+        midday:   {label:"M-F 10am-3pm", talent:"Iliana Zuniga", r15:0, r30:34, r60:34, days:["Mon","Tue","Wed","Thu","Fri"]},
+        afternoon:{label:"M-F 3pm-7pm", talent:"Chris Berger", r15:0, r30:34, r60:34, days:["Mon","Tue","Wed","Thu","Fri"]},
+        rotator:  {label:"M-F 5am-8pm", talent:"Prime Rotator", r15:0, r30:34, r60:34, days:["Mon","Tue","Wed","Thu","Fri"]},
+        evening:  {label:"M-Sun 7pm-Mid (no named host, see caveat 4)", talent:"The Bone Evenings", r15:0, r30:19, r60:21, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:0, r30:21, r60:21, days:["Sat","Sun"]},
+        ros:      {label:"Mon-Sun 6am-12am (ROS)", talent:"ROS", r15:0, r30:21, r60:21, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
       overnight: {label:"M-Sun 12am-6am", talent:"Overnight", r15:1, r30:1, r60:1, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}
       }
     },
@@ -1063,21 +1099,21 @@ const STATIONS_BY_MARKET = {
       logo:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANEAAACMCAMAAADV9Lz0AAADAFBMVEVHcEwCAAAEAAAKBAEFAQADAAAEAAAJBgAJAAAAAAAFAQAGAgACAADhvwADAQAYDQIDAQABAAADAQACAAAKAwACAAADAAAEAAAQCAALBAH/5wACAAAEAAAHAgELBAEOAwIFAQAUCwEFAAAHBADEpgACAAAHAgAEAADvzACulAACAAACAAACAAADAADoxQCRZAN1YwD/4QBuXAC2mgACAACGcQACAAAGAgCkiwDNrgAQDAACAAACAAA2LAADAABmVQACAABWSQCyMCDTswBLPgD//wCJFhGhGRTNHxmAbACFLBA/NADYYjDKMiG/owC4Hxf/9wCfJhpTRQDAVSTXLB/NVxEAAAD/2QAAAAADAAD+2AD+XwDgJhv91wDhIRz/3gD71QD81gDhKB76b0IFAQD6cUH3bkL/4ADyzgD5cj7hMCL7XgD6cTP/7QD/6QD/4gDfLiD2bEP/ZQD+cjkGAwDjQivmRy7iPSjqTDLfMyHlRC3/5wCCbQDjPyr8bSHgOSXhOyYLAwARDAD7cC7+bRv/5AD1ZUHgLh/6a0P4aET/5QD5bypJHAXtUDX/3ACdhQD9cjX/2gBYQwLoSTDfOCT/YgASBQL3ZkPwWjv4ag76axX4aAT20gD7byYKCADgNCMtEAXxXT3/6wD51AD5cT3+2QDuUzdnVQAUEADzXz9MPwDeIBv2ZQPXtQAoBwX9cjsuJgAhDATzYkBHOgBUFQzeNyQkHwAzCwUcBQJACgjfNSM/GArCpABmJwvcJhz/ckbwVznfMSHuIh38YAD/aQCNeABbHgrmIhyLMwCYOAC1QwDgKx4aFgA3EwbUTwDCSgE7NADtKR7rWQDevQDgIxv/bQMgGQDnZzpyIBaXgAD/ch5+NR2pSCj/eERbUAD/akX6UzZ2KgBrFA71XAD/eTqcPiL/YkDsNiT7cTneVAByLxtVJBKoPgD/di7wRC30TDFLEAx5aADtPSjpMSL/bkfeOyf2bzzyYgONOiH/dT7UWTi3Tyy/QSrMTzPWRS3mWzwFOHjqAAAA/HRSTlMA+/ENA/3+AgH+R/y58mMI9dZ+7CzHqJwQHfqEdkA1JmwXT/ny3V2T/PvOvbTj+wX9+v7+0v6MVv39+63n/qHywf7+8vUB/v7+//75/v70/f3+8v3+/v///////////////////////////////v////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////6bHcdcAAAgAElEQVR42uyZe1BU1x3H78IuLA95yDvIO4AFDZoopgNxDJ0iOqUMEzueyywr4Aqyg2apsIs4COsLrYGULgVNCGBFUgezPsLKS1ehFppSJ2GqKRWslCo4aQUGxFfU9nfOvbt7F5AsZKYFpr/xDxmH3fu538f9nStF/X/+ayNceEh8y4UGtNCYPEM8fcB6/IVjvnU0cljrjbVaKEy2ggA1srJdE7ZgzGeL1Nr1TTRa5etHUZYLQShM1JUSV69EkeHOC8J8mEik7eqK6W9EAa7WwvlvPkIkEmlT2uqiGxByCTKf70wsETCJ2zrWj0hQ4GKP+d3meiLRjTpxW1tcfxkyc5unbS4UCi35fAOR6Ia4rq6jLSZajQTL/OfVKkFIdJe7zEAkEosJk5hpc3fc5vOABmB0f7d3d7a2C+QQ3RDjAfN1MG3uM+fNJ2TuudDd2d833HVdoAMPIYmySU/EImGmNqbNveY0E8Gx9AgKdnESAEmZuqm+P3p9XIw2RTQRiZiPtPm6IPu5Gih8VXxvz5AApFSP9EfHx22SSce6YDpTOEQisX5IoHCbL5mTbY4vyGfxKitaXR8f2zo2ODg2Ji0slGm12hQ8k0XSmY+0efCca3NLuBgv1wCk7o/aDTDSVhmZwsLCFHamRprQ5nOoDyjK2hYp6+OrBgd3t8JIYRikzklEIrF4IlPd+iaEQqDN54hMcHO9bFFZf+zoYPNuMoRIyojUOb1IrPnEcSM0Heg8VwznsRYpgadAo9FUVRmQTPMdo1NbTJOARwd6mv/v3xyBQL6RqJ7wlGo0zQySXqSpfTcBqa6jI1qJaBuaDrcXzpYIr1xkhMLvc1OEfMrHFlVHjSo0pXhMRZokEEICC9rFe7a7Y5hxAIWwgs0OCxohyEnSPT46Pp6fn0+IjHzXakKUsEBlSGJDW4TbU/wZknCezD+2N/dxxuNnHsZizZyKT5m7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",
       medianAge:32, genderF:65, genderM:35, /* ESTIMATED — station sheet says "Women 18-49" */
       ageComp:{"12-17":2, "18-24":16, "25-34":30, "35-44":26, "45-54":17, "55-64":6, "65+":3}, /* ESTIMATED, see caveat 1 */
-      rosR30:8,
+      rosR30:21,
       dayparts:[
-        {label:"M-F 6am-10am", talent:"Iliana Zuniga", show:"Iliana Zuniga", r30:10},
-        {label:"M-F 10am-3pm", talent:"Midday Shuffle", show:"Midday Shuffle", r30:10},
-        {label:"M-F 3pm-7pm", talent:"Karley McDaniel", show:"Karley McDaniel", r30:10},
-        {label:"M-F 8pm-Mid (no named host, see caveat 3)", talent:"Shuffle Evenings", show:"Shuffle Evenings", r30:7}
+        {label:"M-F 6am-10am", talent:"Iliana Zuniga", show:"Iliana Zuniga", r30:34},
+        {label:"M-F 10am-3pm", talent:"Midday Shuffle", show:"Midday Shuffle", r30:34},
+        {label:"M-F 3pm-7pm", talent:"Karley McDaniel", show:"Karley McDaniel", r30:34},
+        {label:"M-F 7pm-12am (no named host, see caveat 4)", talent:"Shuffle Evenings", show:"Shuffle Evenings", r30:21}
       ],
       schedule:{
-        morning:  {label:"M-F 6am-8am", talent:"Iliana Zuniga", r15:0, r30:10, r60:10, days:["Mon","Tue","Wed","Thu","Fri"]},
-        midday:   {label:"M-F 8am-3pm (dominant: Midday Shuffle, see caveat 3)", talent:"Midday Shuffle", r15:0, r30:10, r60:10, days:["Mon","Tue","Wed","Thu","Fri"]},
-        afternoon:{label:"M-F 3pm-8pm (dominant: Karley McDaniel, see caveat 3)", talent:"Karley McDaniel", r15:0, r30:10, r60:10, days:["Mon","Tue","Wed","Thu","Fri"]},
-        rotator:  {label:"M-F 5am-8pm", talent:"Prime Rotator", r15:0, r30:10, r60:10, days:["Mon","Tue","Wed","Thu","Fri"]},
-        evening:  {label:"M-F 8pm-Mid (no named host, see caveat 3)", talent:"Shuffle Evenings", r15:0, r30:7, r60:7, days:["Mon","Tue","Wed","Thu","Fri"]},
-        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:0, r30:6, r60:6, days:["Sat","Sun"]},
-        ros:      {label:"Mon-Fri 5am-12am (Prime ROS)", talent:"ROS", r15:0, r30:8, r60:8, days:["Mon","Tue","Wed","Thu","Fri"]},
+        morning:  {label:"M-F 6am-10am", talent:"Iliana Zuniga", r15:0, r30:34, r60:34, days:["Mon","Tue","Wed","Thu","Fri"]},
+        midday:   {label:"M-F 10am-3pm", talent:"Midday Shuffle", r15:0, r30:34, r60:34, days:["Mon","Tue","Wed","Thu","Fri"]},
+        afternoon:{label:"M-F 3pm-7pm", talent:"Karley McDaniel", r15:0, r30:34, r60:34, days:["Mon","Tue","Wed","Thu","Fri"]},
+        rotator:  {label:"M-F 5am-8pm", talent:"Prime Rotator", r15:0, r30:34, r60:34, days:["Mon","Tue","Wed","Thu","Fri"]},
+        evening:  {label:"M-Sun 7pm-Mid (no named host, see caveat 4)", talent:"Shuffle Evenings", r15:0, r30:21, r60:21, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:0, r30:21, r60:21, days:["Sat","Sun"]},
+        ros:      {label:"Mon-Sun 6am-12am (ROS)", talent:"ROS", r15:0, r30:21, r60:21, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
       overnight: {label:"M-Sun 12am-6am", talent:"Overnight", r15:1, r30:1, r60:1, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}
       }
     },
@@ -1086,18 +1122,21 @@ const STATIONS_BY_MARKET = {
       logo:"data:image/png;base64,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",
       medianAge:52, genderF:50, genderM:50, /* ESTIMATED — station sheet says "A35+" (adults, no stated gender skew) */
       ageComp:{"12-17":1, "18-24":3, "25-34":8, "35-44":15, "45-54":20, "55-64":26, "65+":27}, /* ESTIMATED, see caveat 1 */
-      rosR30:8,
+      rosR30:10,
       dayparts:[
-        {label:"M-F 6am-7pm", talent:"Frankie", show:"Frankie", r30:9}
+        {label:"M-F 6am-10am", talent:"Frankie", show:"Frankie", r30:20},
+        {label:"M-F 10am-3pm", talent:"Frankie", show:"Frankie", r30:20},
+        {label:"M-F 3pm-7pm", talent:"Frankie", show:"Frankie", r30:20},
+        {label:"M-F 7pm-12am (no named host, see caveat 4)", talent:"KWOC Evenings", show:"KWOC Evenings", r30:15}
       ],
       schedule:{
-        morning:  {label:"M-F 6am-8am", talent:"Frankie", r15:0, r30:9, r60:9, days:["Mon","Tue","Wed","Thu","Fri"]},
-        midday:   {label:"M-F 8am-3pm", talent:"Frankie", r15:0, r30:9, r60:9, days:["Mon","Tue","Wed","Thu","Fri"]},
-        afternoon:{label:"M-F 3pm-8pm (dominant: Frankie, see caveat 3)", talent:"Frankie", r15:0, r30:9, r60:9, days:["Mon","Tue","Wed","Thu","Fri"]},
-        rotator:  {label:"M-F 5am-8pm", talent:"Prime Rotator", r15:0, r30:10, r60:10, days:["Mon","Tue","Wed","Thu","Fri"]},
-        evening:  {label:"M-F 8pm-Mid (no named host, see caveat 3)", talent:"KWOC Evenings", r15:0, r30:6, r60:6, days:["Mon","Tue","Wed","Thu","Fri"]},
-        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:0, r30:6, r60:6, days:["Sat","Sun"]},
-        ros:      {label:"Mon-Fri 5am-12am (Prime ROS)", talent:"ROS", r15:0, r30:8, r60:8, days:["Mon","Tue","Wed","Thu","Fri"]},
+        morning:  {label:"M-F 6am-10am", talent:"Frankie", r15:0, r30:20, r60:20, days:["Mon","Tue","Wed","Thu","Fri"]},
+        midday:   {label:"M-F 10am-3pm", talent:"Frankie", r15:0, r30:20, r60:20, days:["Mon","Tue","Wed","Thu","Fri"]},
+        afternoon:{label:"M-F 3pm-7pm", talent:"Frankie", r15:0, r30:20, r60:20, days:["Mon","Tue","Wed","Thu","Fri"]},
+        rotator:  {label:"M-F 5am-8pm", talent:"Prime Rotator", r15:0, r30:19, r60:19, days:["Mon","Tue","Wed","Thu","Fri"]},
+        evening:  {label:"M-Sun 7pm-Mid (no named host, see caveat 4)", talent:"KWOC Evenings", r15:0, r30:15, r60:15, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
+        weekend:  {label:"Sat/Sun 6am-7pm", talent:"Weekend", r15:0, r30:13, r60:13, days:["Sat","Sun"]},
+        ros:      {label:"Mon-Sun 6am-12am (ROS)", talent:"ROS", r15:0, r30:10, r60:10, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]},
       overnight: {label:"M-Sun 12am-6am", talent:"Overnight", r15:1, r30:1, r60:1, days:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}
       }
     }
@@ -1537,20 +1576,23 @@ function addManualDigitalTactic(objIndex){
    idea directly into the Broadcast plan \u2014 name + a weekly price, with no
    fixed catalog behind it (unlike the digital manual-add above), since
    there's no real sponsorship rate card in this tool's data (see the
-   12-month schedule's budget-lift note). Each click appends a new card
+   12-month strategy calendar's promotional-strategy note). Each click appends a new card
    rather than replacing the previous one, so a rep can add several ideas
    in a row \u2014 a running counter keeps every id unique even if the same
    name gets added twice. Applies the campaign flight length (if set) the
-   same way every other broadcast line item does. */
+   same way every other broadcast line item does. The price field also
+   accepts the word "Bonus" (see parsePriceOrBonus) for a no-charge
+   added-value item \u2014 e.g. a bonus live remote thrown in on top of a
+   paid schedule. */
 let manualSponsorshipCounter = 0;
 function addManualSponsorship(){
   const nameInput = document.getElementById('manualSponsorshipName');
   const priceInput = document.getElementById('manualSponsorshipPrice');
   const container = document.getElementById('manualSponsorshipsContainer');
   const name = nameInput.value.trim();
-  const weeklyPrice = parseFloat(stripCommas(priceInput.value)) || 0;
+  const parsed = parsePriceOrBonus(priceInput.value);
   if (!name){ alert('Enter a name for the sponsorship or feature.'); return; }
-  if (weeklyPrice <= 0){ alert('Enter a weekly price for this sponsorship or feature.'); return; }
+  if (!parsed.isBonus && parsed.amount <= 0){ alert('Enter a weekly price for this sponsorship or feature, or type "Bonus" if there\'s no charge.'); return; }
 
   manualSponsorshipCounter++;
   const market = document.getElementById('sharedMarket').value;
@@ -1562,11 +1604,11 @@ function addManualSponsorship(){
     id: 'broadcast_sponsorship_' + slugifyForId(market) + '_' + manualSponsorshipCounter + '_' + Date.now(),
     section: 'Broadcast',
     name: name,
-    detail: '$' + formatMoney(weeklyPrice) + '/week (rep-added sponsorship/feature)',
-    monthlyCost: weeklyPrice * 4.33
+    detail: priceOrBonusLabel(parsed) + ' (rep-added sponsorship/feature)',
+    monthlyCost: parsed.isBonus ? 0 : parsed.amount * 4.33
   };
-  if (flightWeeks){
-    planItem.campaignTotal = weeklyPrice * flightWeeks;
+  if (!parsed.isBonus && flightWeeks){
+    planItem.campaignTotal = parsed.amount * flightWeeks;
     planItem.campaignLengthLabel = flightWeeks + ' week' + (flightWeeks===1?'':'s');
     planItem.flightRangeLabel = formatFlightRange(flightStart, flightEnd);
   }
@@ -1575,7 +1617,7 @@ function addManualSponsorship(){
   card.className = 'promo-card';
   card.style.marginTop = '8px';
   card.innerHTML = '<div class="p-name">' + name + ' <span style="font-weight:400; color:var(--text-muted); font-size:11.5px; text-transform:none; letter-spacing:0;">(rep-added)</span></div>'
-    + '<div style="font-size:12.5px; color:var(--text-muted);">$' + formatMoney(weeklyPrice) + '/week</div>'
+    + '<div style="font-size:12.5px; color:var(--text-muted);">' + priceOrBonusLabel(parsed) + '</div>'
     + '<div style="margin-top:8px;">' + planToggleButtonHtml(planItem) + '</div>';
   container.appendChild(card);
 
@@ -1775,6 +1817,43 @@ function formatMoney(value){
   return (Number(value) || 0).toFixed(2);
 }
 
+/* Shared "weekly price OR the word Bonus" handling for every rep-added
+   sponsorship/feature/idea line (manual sponsorship add-on + the sample
+   promotional idea cards below) - per Sean, some added value/promo items
+   run at no additional charge and reps need to be able to say so directly
+   in the price field rather than typing 0 (which read as a data-entry
+   mistake) or leaving it blank (which fails the "must have a price"
+   check). Typing "Bonus" (any case) is a valid weekly price meaning $0
+   cost, still surfaced in the plan/proposal with a "Bonus" label instead
+   of a dollar figure. */
+function parsePriceOrBonus(value){
+  const v = (value || '').toString().trim();
+  if (/^bonus$/i.test(v)) return { isBonus: true, amount: 0 };
+  return { isBonus: false, amount: parseFloat(stripCommas(v)) || 0 };
+}
+
+/* Same live-formatting behavior as formatNumberInput (adds thousands
+   commas as the rep types a number) but leaves the field alone while
+   they're mid-typing the word "Bonus" - formatNumberInput strips every
+   non-digit character on each keystroke, which would erase "Bonus" one
+   letter at a time before the rep finished typing it. */
+function formatPriceOrBonusInput(el){
+  const trimmed = el.value.trim();
+  if (trimmed === '' || /^[a-zA-Z]+$/.test(trimmed)) return;
+  formatNumberInput(el);
+}
+
+function priceOrBonusLabel(parsed){
+  return parsed.isBonus ? 'Bonus (no additional charge)' : ('$' + formatMoney(parsed.amount) + '/week');
+}
+
+/* Minimal HTML-attribute escaping for catalog text (idea titles) that gets
+   dropped into a value="..." attribute so an idea whose title contains an
+   ampersand or quote can't break the surrounding markup. */
+function escAttr(s){
+  return (s || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
 /* ============ CAMPAIGN FLIGHT DATES ============ */
 /* Shared helpers for turning a start/end date pair into a campaign length,
    used to roll a weekly (Broadcast) or monthly (Digital) figure up into a
@@ -1930,6 +2009,154 @@ document.addEventListener('click', function(e){
   const id = btn.getAttribute('data-plan-id');
   if (id) togglePlanItem(id);
 });
+
+/* Returns the <option> currently selected for a <select> element as its
+   human-readable text (e.g. "Seasonal peak(s)" instead of the raw value
+   "peak"), falling back to the element's raw value for a non-select input
+   or an id that isn't on the page. Used by printDiagnosticPdf() so the
+   printout reads in plain English rather than internal option values. */
+function selectedLabel(id){
+  const el = document.getElementById(id);
+  if (!el) return '';
+  if (el.options && el.selectedIndex >= 0) return el.options[el.selectedIndex].text;
+  return el.value || '';
+}
+
+/* Sean (2026-09-11): "I would love for there to be an option on the
+   official plan print out to print out all of the information obtained
+   from the diagnostic ... This will help managers to identify all
+   solutions for the clients." Pulls every answer straight off the
+   Broadcast Diagnostic form (falling back to the matching Digital field
+   for goals/challenges/customer profile/USP/competitive, the same
+   fallback pattern gatherProposalClientProfile() already uses, in case a
+   rep filled in Digital instead of/in addition to Broadcast) into one
+   printable page grouped the way Sean asked for: target audience,
+   profile, competition, current marketing + notes, peak season, goals,
+   and challenges — plus a "Campaign parameters" section with the
+   remaining diagnostic fields (budget, flight, timing/day preference,
+   station selection, staffing) so nothing typed into the form is left
+   out. Deliberately independent of the Official Plan cart (unlike
+   exportPlanToPdf/generateProposal below, which both require at least one
+   cart item) — this is a printout of the diagnostic ANSWERS, not the
+   resulting recommendations, so it's useful the moment the form is filled
+   in, before a rep has picked anything to add to the plan. Reuses the
+   same #printArea + window.print() mechanism as the other two print
+   actions. */
+function printDiagnosticPdf(){
+  const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const checked = cls => Array.from(document.querySelectorAll(cls + ':checked')).map(el => el.value);
+
+  const clientName = val('bClientName') || val('dClientName');
+  const category = val('bCategory') || val('dCategory');
+  const market = selectedLabel('sharedMarket');
+  const industry = selectedLabel('sharedIndustry');
+  const companySize = selectedLabel('sharedCompanySize');
+
+  const targetAge = val('bTargetAge') ? document.getElementById('bTargetAge').value : '';
+  const genderSkew = selectedLabel('bGenderSkew');
+  const ethnicityTargetEl = document.getElementById('bEthnicityTarget');
+  const ethnicityTarget = (ethnicityTargetEl && ethnicityTargetEl.value !== 'none') ? selectedLabel('bEthnicityTarget') : '';
+
+  const customerProfile = val('bCustomerProfile') || val('dCustomerProfile');
+  const usp = val('bUsp') || val('dUsp');
+
+  const competitive = selectedLabel('bCompetitive') || selectedLabel('dCompetitive');
+  const competitors = val('bCompetitors');
+
+  const currentMarketingChannels = checked('.bCurrentMarketingCheck');
+  const currentMarketingNotes = val('bCurrentMarketing');
+
+  const seasonality = selectedLabel('bSeasonality');
+  const peakMonths = val('bPeakMonths');
+
+  const goals = val('bGoals') || val('dGoals');
+  const challenges = val('bChallenges') || val('dChallenges');
+
+  const budget = val('bBudget');
+  const flightStart = val('bFlightStart'), flightEnd = val('bFlightEnd');
+  const weeksPerMonth = selectedLabel('bWeeksPerMonth');
+  const timePref = selectedLabel('bTimePref');
+  const dayPrefValue = (document.getElementById('bDayPref') || {}).value || '';
+  const dayPref = selectedLabel('bDayPref');
+  /* The custom-days and condensed-daypart/day checkboxes stay in the DOM
+     (pre-checked by default) even while their wrapper is hidden, so only
+     read them when the matching day-of-week emphasis is actually
+     selected -- otherwise a rep who never touched "custom" would see a
+     misleading "(Mon, Tue, Wed...)" appended to an unrelated preset. */
+  const customDays = dayPrefValue === 'custom' ? checked('.bCustomDayCheck') : [];
+  const condensedDayparts = dayPrefValue === 'condensed' ? checked('.bCondensedDaypartCheck') : [];
+  const condensedDays = dayPrefValue === 'condensed' ? checked('.bCondensedDayCheck') : [];
+  const staffStatus = selectedLabel('bStaffStatus');
+  const stationMode = selectedLabel('bStationMode');
+  const manualStations = checked('.bManualStationCheck').map(id => {
+    const st = (STATIONS_BY_MARKET[document.getElementById('sharedMarket').value] || []).find(s => s.id === id);
+    return st ? st.name : id;
+  });
+
+  const dateStr = new Date().toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'});
+  const row = (label, value) => value ? ('<p style="margin:14px 0 2px; font-weight:600; color:#1c3d5a;">' + label + '</p><p style="margin:0; white-space:pre-wrap;">' + value + '</p>') : '';
+  const section = (title, rowsHtml) => rowsHtml ? ('<h3 style="margin-top:26px; border-bottom:1px solid #ccc; padding-bottom:4px; font-size:15px; color:#333;">' + title + '</h3>' + rowsHtml) : '';
+
+  let html = '<div style="font-family:Georgia,serif; padding:20px;">';
+  if (MAX_MEDIA_LOGO){ html += '<img src="' + MAX_MEDIA_LOGO + '" alt="Max Media" style="max-height:50px; margin-bottom:14px;">'; }
+  html += '<h1 style="margin-bottom:2px;">Diagnostic Summary</h1>';
+  html += '<p style="color:#555; margin-top:0; font-family:Arial,sans-serif; font-size:13px;">' + (clientName ? ('Prepared for <strong>' + clientName + '</strong> — ') : '') + dateStr + '</p>';
+  html += '<div style="font-family:Arial,sans-serif; font-size:13.5px;">';
+
+  html += section('Client & market', [
+    row('Client / business name', clientName),
+    row('Product / service', category),
+    row('Market', market),
+    row('Industry', industry),
+    row('Company size', companySize)
+  ].join(''));
+
+  html += section('Target audience', [
+    row('Target age range', targetAge),
+    row('Gender skew', genderSkew),
+    row('Ethnicity target', ethnicityTarget)
+  ].join(''));
+
+  html += section('Profile', [
+    row('Customer profile', customerProfile),
+    row('USP', usp)
+  ].join(''));
+
+  html += section('Competition', [
+    row('Competitor aggressiveness', competitive),
+    row('Notable competitors', competitors)
+  ].join(''));
+
+  html += section('Current marketing', [
+    row('Currently advertising with', currentMarketingChannels.join(', ')),
+    row('Additional notes', currentMarketingNotes)
+  ].join(''));
+
+  html += section('Peak season', [
+    row('Seasonality pattern', seasonality),
+    row('Peak months', peakMonths)
+  ].join(''));
+
+  html += section('Goals', row('Campaign goal(s)', goals));
+  html += section('Challenges', row('Challenge(s)', challenges));
+
+  html += section('Campaign parameters', [
+    row('Monthly broadcast budget', budget ? ('$' + budget) : ''),
+    row('Flight dates', (flightStart && flightEnd) ? formatFlightRange(flightStart, flightEnd) : (flightStart ? ('Starts ' + flightStart) : (flightEnd ? ('Ends ' + flightEnd) : ''))),
+    row('Weeks running per month', weeksPerMonth),
+    row('Best time to reach customer', timePref),
+    row('Day-of-week emphasis', dayPref + (customDays.length ? (' (' + customDays.join(', ') + ')') : '')),
+    row('Daypart(s) to dominate', condensedDayparts.length ? condensedDayparts.join(', ') : ''),
+    row('Day(s) to run on (condensed mode)', condensedDays.length ? condensedDays.join(', ') : ''),
+    row('Station selection', stationMode + (manualStations.length ? (' — ' + manualStations.join(', ')) : '')),
+    row('Staff / team capacity', staffStatus)
+  ].join(''));
+
+  html += '</div></div>';
+
+  document.getElementById('printArea').innerHTML = html;
+  window.print();
+}
 
 function exportPlanToPdf(){
   if (!officialPlan.length){ alert('Add at least one recommendation to the plan before exporting.'); return; }
@@ -2204,7 +2431,8 @@ function gatherProposalClientProfile(){
     genderSkew: (document.getElementById('bGenderSkew') || {}).value || 'balanced',
     ethnicityTarget: (document.getElementById('bEthnicityTarget') || {}).value || 'none',
     competitors: val('bCompetitors'),
-    competitive: (document.getElementById('bCompetitive') || {}).value || 'Medium'
+    competitive: (document.getElementById('bCompetitive') || {}).value || 'Medium',
+    peakMonths: val('bPeakMonths')
   };
 }
 
@@ -2213,31 +2441,69 @@ function getSharedRepInfo(){
   return { name: val('sharedRepName'), phone: val('sharedRepPhone'), email: val('sharedRepEmail') };
 }
 
-/* Page 3: reuses stationFitStatement() verbatim (the same "why this
-   station" text the Broadcast tab already writes for its recommended
-   stations) for every DISTINCT station backing a Broadcast-section cart
-   item. Cart items only carry stationId/market when they came from a
-   real station pick (see the planItem comments at each construction
-   site) - a rep-added sponsorship/talent-endorsement line with no
-   specific station attached is simply skipped here, not an error. */
-function buildProposalStationMatchSection(clientProfile, sections){
-  const seen = new Set();
-  let html = '';
-  sections.broadcast.forEach(item => {
-    if (!item.stationId || !item.market) return;
-    const key = item.market + '|' + item.stationId;
-    if (seen.has(key)) return;
-    seen.add(key);
-    const station = (STATIONS_BY_MARKET[item.market] || []).find(s => s.id === item.stationId);
-    if (!station) return;
-    const inputs = {
-      market: item.market, industry: clientProfile.industry, targetAge: clientProfile.targetAge,
-      genderSkew: clientProfile.genderSkew, ethnicityTarget: clientProfile.ethnicityTarget,
-      customerProfile: clientProfile.customerProfile, competitors: clientProfile.competitors
-    };
-    html += '<p style="margin-bottom:16px;">' + stationFitStatement(station, inputs) + '</p>';
-  });
-  return html;
+/* ------------------------------------------------------------------
+   BRANDED PROPOSAL SLIDES - 11-slide outline per Sean:
+     1. Title page                                  -> proposalCoverPage
+     2. Campaign goals & audience recap (+ digital)  -> proposalGoalsAudiencePage
+     3. Station positioning                          -> proposalStationPositioningPage
+     4. Competitive & industry breakdown             -> proposalCompetitiveIndustryPage
+     5. Quu description (only if added)              -> proposalQuuPage
+     6. Current advertising + suggestions/notes      -> proposalCurrentAdvertisingPage
+     7. Creative strategy + promotions selected      -> proposalCreativeStrategyPage
+     8. Broadcast schedule (if added)                -> proposalSectionPage
+     9. Digital schedule (if added)                  -> proposalSectionPage
+     10. Recruitment schedule (if added)             -> proposalSectionPage
+     11. Thank you                                   -> proposalThankYouPage
+   Every slide below is built straight from the diagnostic fields and the
+   Official Plan cart already sitting in the tool - no new data entry, no
+   new backend, no new file format. Slides with nothing real to show
+   (e.g. no Quu add-on, no named competitors) return '' and are skipped
+   automatically rather than printing an empty page. */
+
+function proposalSlideHeader(kicker, title, subtitle){
+  return '<div class="prop-header">'
+    + (kicker ? ('<div class="prop-kicker">' + kicker + '</div>') : '')
+    + '<div class="prop-title">' + title + '</div>'
+    + (subtitle ? ('<div class="prop-subtitle">' + subtitle + '</div>') : '')
+    + '</div>';
+}
+
+function proposalFieldBlock(label, valueHtml){
+  if (!valueHtml) return '';
+  return '<div class="prop-field-label">' + label + '</div><div class="prop-field-value">' + valueHtml + '</div>';
+}
+
+/* Cart items' detailHtml (built by renderScheduleGrid) carries rep-facing
+   planning notes - "(concentrated)" reasoning, the per-week/monthly units
+   reminder, unspent-budget callouts, etc. Those are genuinely useful on the
+   Broadcast/Digital tabs where a rep is building the schedule, but they read
+   as internal chatter in a document going to a client, so the client
+   proposal strips them out rather than duplicating renderScheduleGrid just
+   to omit them. */
+function stripDataNotesForClient(html){
+  return (html || '').replace(/<div class="data-note">[\s\S]*?<\/div>/g, '');
+}
+
+/* Digital "target audience recap" - reads the rep's own configured
+   objective blocks straight off the live DOM (same source
+   readObjectivesFromDOM already feeds the Digital tab's own plan), rather
+   than re-deriving anything from the cart, so it reflects exactly what
+   the rep targeted even if the cart line items themselves are just tactic
+   names/dollars with no audience detail attached. */
+function gatherDigitalObjectivesSummary(){
+  let objectives;
+  try { objectives = readObjectivesFromDOM(); } catch (e){ return []; }
+  return (objectives || [])
+    .filter(o => o.label || (o.goals && o.goals.length))
+    .map(o => ({
+      label: o.label || 'Objective',
+      goalsLabel: (o.goals || []).map(g => (FUNNEL_STAGES[g] || {}).label || g).join(', '),
+      ageTarget: o.ageTarget,
+      gender: o.gender,
+      geography: o.geography,
+      geoScope: geoScopeLabel(o.geoScope),
+      budgetDollars: parseFloat(o.budgetDollars) || 0
+    }));
 }
 
 function proposalCoverPage(clientProfile, sections){
@@ -2254,89 +2520,215 @@ function proposalCoverPage(clientProfile, sections){
   });
   const groupLogo = clientProfile.market ? MARKET_GROUP_LOGO[clientProfile.market] : null;
   if (groupLogo) stationLogos.unshift(groupLogo);
-  let html = '<div class="proposal-page" style="text-align:center; padding-top:110px;">';
-  if (MAX_MEDIA_LOGO){ html += '<img src="' + MAX_MEDIA_LOGO + '" alt="Max Media" style="max-height:70px; margin-bottom:36px;">'; }
-  html += '<div style="font-size:14px; letter-spacing:0.08em; text-transform:uppercase; color:#777; margin-bottom:10px;">A Special Presentation for</div>';
-  html += '<h1 style="font-size:32px; margin:0 0 40px;">' + clientProfile.clientName + '</h1>';
-  html += '<div style="font-size:13px; color:#777; margin-bottom:14px;">Presented by</div>';
+  let html = '<div class="proposal-page" style="background:var(--navy); color:#fff; text-align:center; margin:-36px -40px; padding:100px 50px 50px;">';
+  if (MAX_MEDIA_LOGO_WHITE){ html += '<img src="' + MAX_MEDIA_LOGO_WHITE + '" alt="Max Media" style="max-height:60px; margin-bottom:40px;">'; }
+  html += '<div style="font-family:\'IBM Plex Mono\',monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); margin-bottom:12px;">A Special Presentation for</div>';
+  html += '<div style="font-family:\'Oswald\',sans-serif; font-weight:700; font-size:34px; text-transform:uppercase; margin:0 0 6px;">' + clientProfile.clientName + '</div>';
+  html += '<div style="width:60px; height:3px; background:var(--gold); margin:0 auto 40px;"></div>';
   if (stationLogos.length){
-    html += '<div style="display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:20px; margin-bottom:34px;">';
-    stationLogos.forEach(src => { html += '<img src="' + src + '" alt="" style="height:34px; width:auto;">'; });
+    html += '<div style="font-size:12px; color:#C9CEDA; margin-bottom:14px; text-transform:uppercase; letter-spacing:0.1em;">Presented by</div>';
+    html += '<div style="display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:20px; margin-bottom:40px; background:#fff; border-radius:10px; padding:16px 20px;">';
+    stationLogos.forEach(src => { html += '<img src="' + src + '" alt="" style="height:32px; width:auto;">'; });
     html += '</div>';
   }
-  html += '<div style="font-size:13px; color:#777;">' + clientProfile.market + ' &middot; ' + dateStr + '</div>';
+  html += '<div style="font-size:13px; color:#C9CEDA;">' + clientProfile.market + ' &middot; ' + dateStr + '</div>';
   html += '</div>';
   return html;
 }
 
-function proposalClientProfilePage(clientProfile){
-  const row = (label, value) => value ? ('<p style="margin:16px 0 2px; font-weight:600; color:#1c3d5a;">' + label + '</p><p style="margin:0;">' + value + '</p>') : '';
+/* Slide 2: goals + full target-audience recap, including the rep's own
+   configured digital objectives when there's a digital plan in the cart -
+   per Sean's "including digital if added". */
+function proposalGoalsAudiencePage(clientProfile, sections){
   let html = '<div class="proposal-page">';
-  html += '<h2 style="border-bottom:2px solid #333; padding-bottom:6px;">Where We’re Starting</h2>';
-  html += row('Goals', clientProfile.goals);
-  html += row('Challenges', clientProfile.challenges);
+  html += proposalSlideHeader('PROPOSAL DEVELOPMENT', 'Campaign Goals &amp; Audience', 'What this plan is built to accomplish.');
+  html += proposalFieldBlock('Goals', clientProfile.goals);
   const genderNote = (clientProfile.genderSkew && clientProfile.genderSkew !== 'balanced') ? (', skews ' + clientProfile.genderSkew) : '';
-  html += row('Target audience', clientProfile.targetAge + genderNote);
-  html += row('Customer profile', clientProfile.customerProfile);
-  const marketingLine = [clientProfile.currentMarketingChannels.join(', '), clientProfile.currentMarketing].filter(Boolean).join(' — ');
-  html += row('Current marketing', marketingLine);
-  html += row('Staffing & team capacity', clientProfile.staffStatus);
-  html += '</div>';
-  return html;
-}
+  const ethnicityNote = (clientProfile.ethnicityTarget && clientProfile.ethnicityTarget !== 'none') ? (', ' + clientProfile.ethnicityTarget + ' target') : '';
+  html += proposalFieldBlock('Target audience', (clientProfile.targetAge || '') + genderNote + ethnicityNote);
+  html += proposalFieldBlock('Customer profile', clientProfile.customerProfile);
 
-function proposalCreativeStrategyPage(creative){
-  let html = '<div class="proposal-page">';
-  html += '<h2 style="border-bottom:2px solid #333; padding-bottom:6px;">Creative Strategy</h2>';
-  if (creative){
-    if (creative.campaign_name){ html += '<h3 style="margin-top:20px;">' + creative.campaign_name + '</h3>'; }
-    if (creative.concept){ html += '<p>' + creative.concept + '</p>'; }
-    if (creative.creative_angle){ html += '<p style="font-weight:600; margin-top:18px;">Creative angle</p><p style="margin-top:2px;">' + creative.creative_angle + '</p>'; }
-    const pillars = creative.messaging_pillars || [];
-    if (pillars.length){ html += '<p style="font-weight:600; margin-top:18px;">Messaging pillars</p><div>' + pillars.map(p => '<span class="pill">' + p + '</span>').join('') + '</div>'; }
-    if (creative.narrative_summary){ html += '<p style="font-weight:600; margin-top:18px;">The story</p><p style="margin-top:2px;">' + creative.narrative_summary + '</p>'; }
-  } else {
-    html += '<div class="note-box">A tailored creative strategy couldn’t be generated for this proposal (the AI service may be unavailable) — everything else in this proposal is unaffected. Consider adding a creative summary by hand before sending.</div>';
+  if (sections.digital.length){
+    const objectives = gatherDigitalObjectivesSummary();
+    if (objectives.length){
+      html += '<div class="prop-field-label" style="margin-top:18px;">Digital objectives</div>';
+      objectives.forEach(o => {
+        const targetBits = [o.goalsLabel || 'General', o.geography || o.geoScope];
+        if (o.ageTarget) targetBits.push(o.ageTarget + (o.gender && o.gender !== 'balanced' ? (', ' + o.gender) : ''));
+        if (o.budgetDollars) targetBits.push('$' + Math.round(o.budgetDollars).toLocaleString() + '/mo');
+        html += '<div class="prop-card"><div class="prop-card-title">' + o.label + '</div>'
+          + '<div style="font-size:12.5px; color:var(--text-muted);">' + targetBits.filter(Boolean).join(' &middot; ') + '</div></div>';
+      });
+    }
   }
   html += '</div>';
   return html;
 }
 
-/* Pages 5/6/7 - one per non-empty cart section, reusing the exact same
+/* Slide 3: one positioning card per DISTINCT real station backing a
+   Broadcast-section cart item, reusing stationFitStatement() verbatim
+   (the same "why this station" text the Broadcast tab already writes) plus
+   its format's listener-insight bullets. Cart items only carry
+   stationId/market when they came from a real station pick - a rep-added
+   sponsorship/talent-endorsement line with no specific station attached is
+   simply skipped, not an error. Returns '' (auto-skipping the slide) when
+   there's no real station in the plan at all (e.g. a digital-only cart). */
+function proposalStationPositioningPage(clientProfile, sections){
+  const seen = new Set();
+  let cards = '';
+  sections.broadcast.forEach(item => {
+    if (!item.stationId || !item.market) return;
+    const key = item.market + '|' + item.stationId;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const station = (STATIONS_BY_MARKET[item.market] || []).find(s => s.id === item.stationId);
+    if (!station) return;
+    const inputs = {
+      market: item.market, industry: clientProfile.industry, targetAge: clientProfile.targetAge,
+      genderSkew: clientProfile.genderSkew, ethnicityTarget: clientProfile.ethnicityTarget,
+      customerProfile: clientProfile.customerProfile, competitors: clientProfile.competitors
+    };
+    const logo = getStationLogo(item.market, item.stationId);
+    cards += '<div class="prop-card">'
+      + '<div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">'
+      + (logo ? ('<img src="' + logo + '" alt="" style="height:24px; width:auto;">') : '')
+      + '<span class="prop-card-title" style="margin-bottom:0;">' + station.name + '</span>'
+      + '<span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.3px;">' + station.format + '</span>'
+      + '</div>'
+      + '<div style="font-size:13px;">' + stationFitStatement(station, inputs) + '</div>'
+      + renderFormatInsights(station, clientProfile.industry)
+      + '</div>';
+  });
+  if (!cards) return '';
+  let html = '<div class="proposal-page">';
+  html += proposalSlideHeader('STATION LINEUP', 'Station Positioning', 'Why each station fits this campaign.');
+  html += cards;
+  html += '</div>';
+  return html;
+}
+
+/* Slide 4: industry + competitive landscape recap. When the client
+   specifically flagged "losing business to competitors" as a challenge,
+   surfaces the same challenge-matched messaging the Broadcast tab already
+   writes for that exact challenge (grounded in the real stations actually
+   in the cart), rather than duplicating that logic from scratch. */
+function proposalCompetitiveIndustryPage(clientProfile, sections){
+  const hasContent = clientProfile.industry || clientProfile.competitors;
+  if (!hasContent) return '';
+  let html = '<div class="proposal-page">';
+  html += proposalSlideHeader('MARKET LANDSCAPE', 'Competitive &amp; Industry Breakdown', clientProfile.market || '');
+  html += proposalFieldBlock('Industry', clientProfile.industry || 'Not specified');
+  html += proposalFieldBlock('Competitive intensity', clientProfile.competitive);
+  html += proposalFieldBlock('Named competitors', clientProfile.competitors);
+
+  const matched = matchChallenges(clientProfile.challenges).find(c => c.id === 'competition');
+  if (matched && sections.broadcast.length){
+    const stationNames = Array.from(new Set(sections.broadcast.map(i => i.name)));
+    const ctx = {
+      clientName: clientProfile.clientName,
+      topStationName: stationNames[0],
+      numStations: stationNames.length,
+      otherStationNames: stationNames.slice(1).join(' and '),
+      competitive: clientProfile.competitive
+    };
+    html += '<div class="prop-card gold" style="margin-top:14px;"><div class="prop-card-title">' + matched.label + '</div><div>' + matched.broadcastMsg(ctx) + '</div></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+/* Slide 5: only rendered when the rep actually checked "Add Quu" on the
+   Broadcast tab for this plan - per Sean's "Quu slide if added". */
+function proposalQuuPage(quuAdded, sections){
+  if (!quuAdded || !sections.broadcast.length) return '';
+  let html = '<div class="proposal-page">';
+  html += proposalSlideHeader('TECHNOLOGY ADD-ON', 'Quu AdSync In-Dash Display', 'They hear your ad. Now they see it, too.');
+  html += '<p>Max Media’s Quu AdSync technology brings your radio commercial to life on compatible vehicle dashboards. As the commercial plays, a synchronized visual message featuring your business name, logo, offer, and call to action appears right on the dash — reinforcing the message, strengthening brand recall, and giving every commercial more impact.</p>';
+  html += '<div class="prop-card"><div class="prop-card-title">What’s included</div>'
+    + bulletList([
+        'A synced visual (business name, logo, offer, call to action) displays on the dashboard for the length of every commercial',
+        'Works on both RDS-only and HD-capable dashboards',
+        'Adds 10% to the cost of every commercial on the stations where it’s added — already reflected in the schedule totals in this proposal'
+      ])
+    + '</div>';
+  html += '</div>';
+  return html;
+}
+
+/* Slide 6: current marketing channels/notes (with the same "how adding
+   Max Media strengthens this" comparison the Broadcast tab writes) plus
+   the client's stated challenges and staffing/team-capacity notes -
+   everything from the diagnostic that isn't specifically an audience,
+   competitive, or creative point. Returns '' when the diagnostic simply
+   didn't capture any of this for the client. */
+function proposalCurrentAdvertisingPage(clientProfile){
+  const matches = matchCurrentMarketing(clientProfile.currentMarketingChannels);
+  const hasChannelText = clientProfile.currentMarketingChannels.length || clientProfile.currentMarketing;
+  if (!hasChannelText && !clientProfile.challenges && !clientProfile.staffStatus) return '';
+  let html = '<div class="proposal-page">';
+  html += proposalSlideHeader('WHERE THEY STAND TODAY', 'Current Advertising &amp; Opportunities', clientProfile.clientName);
+  if (hasChannelText){
+    const marketingLine = [clientProfile.currentMarketingChannels.join(', '), clientProfile.currentMarketing].filter(Boolean).join(' — ');
+    html += proposalFieldBlock('Currently advertising on', marketingLine);
+    html += '<div style="margin-top:6px;">' + renderCurrentMarketingMessages(matches) + '</div>';
+  } else {
+    html += '<div class="prop-card">No current advertising channels noted in the diagnostic — this plan builds awareness from a clean slate.</div>';
+  }
+  if (clientProfile.challenges){ html += proposalFieldBlock('Challenges to solve for', clientProfile.challenges); }
+  if (clientProfile.staffStatus){ html += proposalFieldBlock('Staffing &amp; team capacity', clientProfile.staffStatus); }
+  html += '</div>';
+  return html;
+}
+
+/* Slide 7: creative strategy (unified AI narrative spanning every
+   recommended channel - see callClaudeProposal) plus whichever peak-season
+   promotions the rep checked on the Official Plan panel, combined into one
+   slide per Sean's "creative strategy including promotions selected". */
+function proposalCreativeStrategyPage(creative, promotions, peakMonths){
+  let html = '<div class="proposal-page">';
+  html += proposalSlideHeader('THE BIG IDEA', 'Creative &amp; Promotional Strategy', peakMonths ? ('Peak season: ' + peakMonths) : '');
+  if (creative){
+    if (creative.campaign_name){ html += '<div class="prop-field-label" style="margin-top:0;">Campaign</div><div class="prop-field-value" style="font-family:\'Oswald\',sans-serif; font-size:17px; color:var(--navy); font-weight:600;">' + creative.campaign_name + '</div>'; }
+    if (creative.concept){ html += proposalFieldBlock('Concept', creative.concept); }
+    if (creative.creative_angle){ html += proposalFieldBlock('Creative angle', creative.creative_angle); }
+    const pillars = creative.messaging_pillars || [];
+    if (pillars.length){ html += '<div class="prop-field-label">Messaging pillars</div><div>' + pillars.map(p => '<span class="prop-pill">' + p + '</span>').join('') + '</div>'; }
+    if (creative.narrative_summary){ html += proposalFieldBlock('The story', creative.narrative_summary); }
+  } else {
+    html += '<div class="prop-card">A tailored creative strategy couldn’t be generated for this proposal (the AI service may be unavailable) — everything else in this proposal is unaffected. Consider adding a creative summary by hand before sending.</div>';
+  }
+  if (promotions && promotions.length){
+    html += '<div class="prop-field-label" style="margin-top:18px;">Promotions selected</div>';
+    promotions.forEach(p => {
+      html += '<div class="prop-card"><div class="prop-card-title">' + p.title + '</div><div>' + p.description + '</div></div>';
+    });
+  }
+  html += '</div>';
+  return html;
+}
+
+/* Slides 8/9/10 - one per non-empty cart section, reusing the exact same
    per-item block layout exportPlanToPdf() already uses (name, logo,
    monthly $, detail, and the fully-rendered detailHtml table when the
-   item has one - e.g. a station's real schedule grid). */
-function proposalSectionPage(title, items){
+   item has one - e.g. a station's real schedule grid), now inside a
+   branded card instead of a plain bottom-border row. */
+function proposalSectionPage(kicker, title, items){
   let html = '<div class="proposal-page">';
-  html += '<h2 style="border-bottom:2px solid #333; padding-bottom:6px;">' + title + '</h2>';
+  html += proposalSlideHeader(kicker, title, '');
   items.forEach(i => {
-    html += '<div style="margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #ccc;">';
+    html += '<div class="prop-card">';
     html += '<div style="display:flex; justify-content:space-between; align-items:baseline;">';
     html += '<span style="display:flex; align-items:center; gap:8px;">';
     if (i.logo){ html += '<img src="' + i.logo + '" alt="" style="height:22px; width:auto;">'; }
-    html += '<strong style="font-size:14px;">' + i.name + '</strong>';
+    html += '<strong style="font-size:14px; color:var(--navy);">' + i.name + '</strong>';
     html += '</span>';
-    html += '<span style="font-size:13px; white-space:nowrap; margin-left:12px;">' + (i.monthlyCost ? ('$' + Math.round(i.monthlyCost).toLocaleString() + '/mo') : '') + '</span>';
+    html += '<span style="font-size:13px; white-space:nowrap; margin-left:12px; font-weight:600; color:var(--teal);">' + (i.monthlyCost ? ('$' + Math.round(i.monthlyCost).toLocaleString() + '/mo') : '') + '</span>';
     html += '</div>';
     if (i.detail){ html += '<div style="font-size:11.5px; color:#555; margin-top:2px;">' + i.detail + '</div>'; }
     if (i.campaignTotal != null){
       html += '<div style="font-size:11.5px; color:#555; margin-top:2px;">Flight: ' + i.flightRangeLabel + ' (' + i.campaignLengthLabel + ') — <strong>campaign total $' + Math.round(i.campaignTotal).toLocaleString() + '</strong></div>';
     }
-    if (i.detailHtml){ html += '<div style="margin-top:8px; font-size:12px;">' + i.detailHtml + '</div>'; }
-    html += '</div>';
-  });
-  html += '</div>';
-  return html;
-}
-
-function proposalPromotionsPage(promotions){
-  if (!promotions || !promotions.length) return '';
-  let html = '<div class="proposal-page">';
-  html += '<h2 style="border-bottom:2px solid #333; padding-bottom:6px;">Peak Season Promotions</h2>';
-  promotions.forEach(p => {
-    html += '<div style="margin-bottom:22px;">';
-    html += '<p style="font-weight:600; color:#1c3d5a; margin-bottom:4px;">' + p.title + '</p>';
-    html += '<p style="margin:0;">' + p.description + '</p>';
+    if (i.detailHtml){ html += '<div style="margin-top:8px; font-size:12px;">' + stripDataNotesForClient(i.detailHtml) + '</div>'; }
     html += '</div>';
   });
   html += '</div>';
@@ -2344,34 +2736,34 @@ function proposalPromotionsPage(promotions){
 }
 
 function proposalThankYouPage(clientProfile, repInfo){
-  let html = '<div class="proposal-page" style="text-align:center; padding-top:130px;">';
-  html += '<h1 style="font-size:28px;">Thank You</h1>';
-  html += '<p style="font-size:15px; color:#555; margin-top:12px;">We’re excited about the opportunity to work with ' + clientProfile.clientName + '.</p>';
+  let html = '<div class="proposal-page" style="background:var(--navy); color:#fff; text-align:center; margin:-36px -40px; padding:130px 50px 50px;">';
+  html += '<div style="font-family:\'Oswald\',sans-serif; font-weight:700; font-size:30px; text-transform:uppercase;">Thank You</div>';
+  html += '<div style="width:60px; height:3px; background:var(--gold); margin:16px auto 24px;"></div>';
+  html += '<p style="font-size:14px; color:#C9CEDA;">We’re excited about the opportunity to work with ' + clientProfile.clientName + '.</p>';
   html += '<div style="margin-top:50px; font-size:14px;">';
   if (repInfo.name){ html += '<div style="font-weight:600;">' + repInfo.name + '</div>'; }
-  if (repInfo.phone){ html += '<div>' + repInfo.phone + '</div>'; }
-  if (repInfo.email){ html += '<div>' + repInfo.email + '</div>'; }
+  if (repInfo.phone){ html += '<div style="color:#C9CEDA;">' + repInfo.phone + '</div>'; }
+  if (repInfo.email){ html += '<div style="color:#C9CEDA;">' + repInfo.email + '</div>'; }
   if (!repInfo.name && !repInfo.phone && !repInfo.email){
-    html += '<div style="color:#999; font-style:italic;">Add your name, phone, and email in the Client Profile section at the top of the tool so they show up here.</div>';
+    html += '<div style="color:#8890A0; font-style:italic;">Add your name, phone, and email in the Client Profile section at the top of the tool so they show up here.</div>';
   }
   html += '</div></div>';
   return html;
 }
 
-function buildProposalHtml(clientProfile, repInfo, sections, creative, promotions){
-  let html = '<div style="font-family:Georgia,serif;">';
-  html += proposalCoverPage(clientProfile, sections);
-  html += proposalClientProfilePage(clientProfile);
-  const matchHtml = buildProposalStationMatchSection(clientProfile, sections);
-  if (matchHtml){
-    html += '<div class="proposal-page"><h2 style="border-bottom:2px solid #333; padding-bottom:6px;">Matching the Right Stations</h2>' + matchHtml + '</div>';
-  }
-  html += proposalCreativeStrategyPage(creative);
-  if (sections.broadcast.length){ html += proposalSectionPage('Broadcast Proposal', sections.broadcast); }
-  if (sections.digital.length){ html += proposalSectionPage('Digital Proposal', sections.digital); }
-  if (sections.recruitment.length){ html += proposalSectionPage('Recruitment Plan', sections.recruitment); }
-  html += proposalPromotionsPage(promotions);
-  html += proposalThankYouPage(clientProfile, repInfo);
+function buildProposalHtml(clientProfile, repInfo, sections, creative, promotions, quuAdded){
+  let html = '<div>';
+  html += proposalCoverPage(clientProfile, sections);                                          // 1. Title page
+  html += proposalGoalsAudiencePage(clientProfile, sections);                                   // 2. Campaign goals & audience recap
+  html += proposalStationPositioningPage(clientProfile, sections);                              // 3. Station positioning
+  html += proposalCompetitiveIndustryPage(clientProfile, sections);                             // 4. Competitive & industry breakdown
+  html += proposalQuuPage(quuAdded, sections);                                                  // 5. Quu description (if added)
+  html += proposalCurrentAdvertisingPage(clientProfile);                                        // 6. Current advertising + suggestions/notes
+  html += proposalCreativeStrategyPage(creative, promotions, clientProfile.peakMonths);         // 7. Creative strategy + promotions selected
+  if (sections.broadcast.length){ html += proposalSectionPage('THE INVESTMENT', 'Broadcast Schedule', sections.broadcast); }     // 8
+  if (sections.digital.length){ html += proposalSectionPage('THE INVESTMENT', 'Digital Schedule', sections.digital); }           // 9
+  if (sections.recruitment.length){ html += proposalSectionPage('THE INVESTMENT', 'Recruitment Schedule', sections.recruitment); } // 10
+  html += proposalThankYouPage(clientProfile, repInfo);                                         // 11. Thank you
   html += '</div>';
   return html;
 }
@@ -2396,7 +2788,8 @@ async function callClaudeProposal(clientProfile, sections){
     + "Customer profile: " + (clientProfile.customerProfile || "not specified") + "\n"
     + "Goals: " + (clientProfile.goals || "not specified") + "\n"
     + "Challenges: " + (clientProfile.challenges || "not specified") + "\n"
-    + "Competitive landscape: " + clientProfile.competitive + (clientProfile.competitors ? (", named competitors: " + clientProfile.competitors) : "") + "\n\n"
+    + "Competitive landscape: " + clientProfile.competitive + (clientProfile.competitors ? (", named competitors: " + clientProfile.competitors) : "") + "\n"
+    + "Peak selling season: " + (clientProfile.peakMonths || "not specified") + "\n\n"
     + "RECOMMENDED CHANNELS:\n"
     + (stationNames.length ? ("Broadcast stations: " + stationNames.join(", ") + "\n") : "")
     + (digitalTactics.length ? ("Digital tactics: " + digitalTactics.join("; ") + "\n") : "")
@@ -2432,6 +2825,8 @@ async function generateProposal(){
       recruitment: officialPlan.filter(i => i.section === 'Recruitment')
     };
     const promotions = gatherSelectedPromotions();
+    const quuEl = document.getElementById('bAddQuu');
+    const quuAdded = !!(quuEl && quuEl.checked);
 
     let creative = null;
     try {
@@ -2440,7 +2835,7 @@ async function generateProposal(){
       creative = null; // proposalCreativeStrategyPage() falls back to an honest note
     }
 
-    const html = buildProposalHtml(clientProfile, repInfo, sections, creative, promotions);
+    const html = buildProposalHtml(clientProfile, repInfo, sections, creative, promotions, quuAdded);
     document.getElementById('printArea').innerHTML = html;
     window.print();
   } finally {
@@ -2542,103 +2937,47 @@ function computeSchedule(seasonality, peakMonthsText){
   return {levels, labels};
 }
 
+/* Sean (2026-09-11): the calendar's note used to reason dynamically about
+   ramp-up/peak/taper timing in prose or bullets, but he found that still
+   wasn't useful information -- reps don't need the tool explaining WHEN
+   ramp-up happens (the bar chart above already shows that visually), they
+   need a short, consistent call to action every time. This is now one
+   fixed, static paragraph -- identical on every plan, every market,
+   regardless of seasonality/competitive/budget -- pointing the rep at the
+   two concrete next steps that already exist below it in the output: the
+   "Sample promotional idea starters" section (matchIdeas/renderIdeas,
+   already filtered to this plan's ramp-up/peak/taper/boost months and
+   industry) and the "Add a sponsorship or feature idea" custom-add form.
+   Intentionally ignores its own parameters (kept so the call site doesn't
+   need to change) -- there is deliberately nothing plan-specific left to
+   compute here. */
 function scheduleReasoning(seasonality, peakMonthsText, labels, competitive, topStationName, totalWeekly){
-  const peakIdxs = [];
-  labels.forEach((l,i) => { if (l === "Peak") peakIdxs.push(i); });
-  let text;
-  if (peakIdxs.length === 0){
-    text = "With steady, year-round demand, this plan uses quarterly boosts (March, June, September, December) to refresh awareness each quarter rather than concentrating spend around a single season — the standard approach for businesses without a defined seasonal peak.";
-  } else {
-    const peakNames = peakIdxs.map(i => FULL_MONTHS[i]).join(" and ");
-    const rampNames = []; labels.forEach((l,i) => { if (l === "Ramp-up") rampNames.push(FULL_MONTHS[i]); });
-    const taperNames = []; labels.forEach((l,i) => { if (l === "Taper") taperNames.push(FULL_MONTHS[i]); });
-    text = `Based on standard media-planning practice, awareness needs to build 4\u20138 weeks ahead of peak demand rather than starting cold the month it hits. `;
-    text += `Since ${peakNames} ${peakIdxs.length > 1 ? "were" : "was"} entered as peak month${peakIdxs.length > 1 ? "s" : ""}, the schedule ramps up in ${rampNames.join(" and ") || "the preceding weeks"}, holds peak intensity in ${peakNames}, and tapers in ${taperNames.join(" and ") || "the following month"} before settling back to maintenance.`;
-  }
-  const parts = [text, budgetLiftInsight(labels, totalWeekly, topStationName), maintainMonthsStrategy(competitive, topStationName)];
-  return parts.filter(Boolean).join(' ');
-}
-
-/* The intensity chart above is easy to read as purely illustrative \u2014 a
-   nice visual, not an actual instruction to spend differently. This makes
-   it concrete: during the higher-intensity months, the recommendation is
-   to genuinely raise the budget (not just reshuffle the same weekly
-   dollars) and put that incremental spend toward a station sponsorship or
-   event tie-in layered onto the existing schedule, rather than more
-   standard rotation spots. The lift percentages (roughly +20% for
-   ramp-up, +35% for peak, +25% for quarterly boosts) are a planning
-   guideline grounded in this plan's actual weekly rate, not a fabricated
-   sponsorship rate card \u2014 there's no real "station sponsorship" pricing
-   in this tool's data, so the rep needs to confirm actual package pricing
-   and availability with the station directly. Returns '' if there's no
-   recommended weekly budget to lift from (e.g. no stations picked yet). */
-function budgetLiftInsight(labels, totalWeekly, topStationName){
-  if (!totalWeekly || totalWeekly <= 0) return '';
-  const name = topStationName || "the recommended station";
-  const rampNames = []; labels.forEach((l,i) => { if (l === "Ramp-up") rampNames.push(FULL_MONTHS[i]); });
-  const peakNames = []; labels.forEach((l,i) => { if (l === "Peak") peakNames.push(FULL_MONTHS[i]); });
-  const boostNames = []; labels.forEach((l,i) => { if (l === "Boost") boostNames.push(FULL_MONTHS[i]); });
-  const baseWeekly = Math.round(totalWeekly);
-
-  if (peakNames.length){
-    let text = `The chart above is about actual budget, not just a talking point \u2014 it's worth genuinely raising spend in the higher-intensity months, not just reshuffling the same weekly dollars. `;
-    if (rampNames.length){
-      const rampWeekly = Math.round(totalWeekly * 1.2);
-      text += `In ${rampNames.join(" and ")}, a reasonable planning target is roughly +20% over the base schedule ($${rampWeekly.toLocaleString()}/week instead of $${baseWeekly.toLocaleString()}/week), with that incremental spend put toward a station sponsorship on ${name} \u2014 a named-segment sponsorship (traffic, weather, a live remote) or event tie-in layered onto the schedule above, not just more standard rotation spots. `;
-    }
-    const peakWeekly = Math.round(totalWeekly * 1.35);
-    text += `Through ${peakNames.join(" and ")}, push that lift further, to roughly +35% ($${peakWeekly.toLocaleString()}/week), for the same reason \u2014 sponsorship-level visibility during the exact weeks that matter most. These percentages are a planning guideline grounded in this plan's own weekly rate, not a sponsorship rate card \u2014 confirm actual package pricing and availability with the station directly.`;
-    return text;
-  }
-  const boostWeekly = Math.round(totalWeekly * 1.25);
-  return `The chart above is about actual budget, not just a talking point \u2014 it's worth genuinely raising spend in the quarterly boost months (${boostNames.join(", ")}), not just reshuffling the same weekly dollars. A reasonable planning target is roughly +25% over the base schedule ($${boostWeekly.toLocaleString()}/week instead of $${baseWeekly.toLocaleString()}/week) in those months, put toward a station sponsorship on ${name} rather than just more standard rotation spots. This percentage is a planning guideline grounded in this plan's own weekly rate, not a sponsorship rate card \u2014 confirm actual package pricing and availability with the station directly.`;
-}
-
-/* "Maintain" is a budget-intensity label, not a "go dark" instruction \u2014
-   but read on its own, it can sound like permission to pull back entirely,
-   which is exactly the wrong signal for a client to take away. This ties
-   the maintain months back to the annual strategy: staying part of the
-   conversation year-round through lower-cost station and event
-   sponsorships, so message consistency (and share of voice against
-   competitors) doesn't reset every time spend drops from peak to
-   maintenance. Framed by competitive intensity since that's what
-   determines how much a real gap in presence actually costs the client.
-   Market-agnostic on purpose \u2014 this is a media-planning strategy point,
-   not something tied to any one market's stations or rates, so it applies
-   the same way in every market. */
-function maintainMonthsStrategy(competitive, topStationName){
-  const name = topStationName || "the recommended station";
-  if (competitive === "High"){
-    return `One thing worth being explicit with the client about: "Maintain" months are not "go dark" months. Against an aggressive competitive set, any real gap in presence is exactly the opening a competitor needs to take share of voice. Build station sponsorships and event sponsorships into the maintain months on ${name} so the brand stays part of the conversation at a lower cost than full-frequency flights \u2014 the goal is a consistent message all year, with spend flexing up for peak and down (never to zero) the rest of the time.`;
-  }
-  if (competitive === "Medium"){
-    return `Worth setting expectations with the client here: "Maintain" doesn't mean pulling back to nothing between peaks. Station sponsorships and event sponsorships on ${name} are a cost-efficient way to keep the message consistent through the maintain months, so the brand isn't rebuilding awareness from scratch every time a peak window approaches.`;
-  }
-  return `Even with a less aggressive competitive set, "Maintain" months are best used to build station sponsorships and event sponsorships on ${name} rather than going quiet \u2014 it keeps messaging consistent year-round at a lower cost, and means less ground to make up when ramping into the next peak.`;
+  return `This is your annual promotional projection. Add promotional sponsorships, event sponsorships, or custom contests to the months leading into your peak months and during to increase your Share of Voice and maximize your results. Also work with your sales representative to design creative messaging specific to your peak season marketing initiatives. See sample promotional idea starters below or add custom sponsorships.`;
 }
 
 /* Explains WHY the plan is built to support the client's stated goal,
    grounded in this specific plan's actual budget/flight/competitive
-   signals \u2014 not a generic pitch. Deliberately stops short of promising
+   signals — not a generic pitch. Deliberately stops short of promising
    the plan WILL hit the specific number in the goal: no honest media plan
    can guarantee a business outcome, and this tool has no way to measure
    one after the fact anyway. The value is showing the rep (and the
    client) that the plan rests on the right fundamentals for that goal,
    rather than leaving "we'll hit your goal" as an unsupported claim.
-   Returns '' if no goal was entered, so the section just doesn't show. */
+   Rendered as a short bullet list rather than a paragraph. Returns '' if
+   no goal was entered, so the section just doesn't show. */
 function broadcastGoalConfidence(goalsText, opts){
   if (!goalsText || !goalsText.trim()) return '';
-  const parts = [];
-  parts.push(`<strong>"${goalsText.trim()}"</strong> is the target driving this recommendation \u2014 here's what in this specific plan is built around it.`);
-  parts.push(opts.meetsBudgetFloor
-    ? `The budget clears the realistic floor for a broadcast campaign built to move a business goal, not just hold awareness steady.`
-    : `The current budget is below the realistic floor for a campaign built to move a specific goal (see the budget note above) \u2014 that's the single biggest risk to hitting this target, worth addressing before setting client expectations.`);
-  parts.push(opts.flightWeeks
-    ? `At ${opts.flightWeeks} week${opts.flightWeeks===1?'':'s'}, the flight is long enough to build the kind of frequency that actually changes behavior, rather than a short burst that fades before it does.`
-    : `Setting flight dates above will let this section speak to whether there's enough time built into the plan to realistically reach that goal, not just the weekly rate.`);
-  parts.push(`${opts.topStationName || 'The recommended station'}'s audience fit and the ${(opts.competitive||'medium').toLowerCase()}-competitive schedule above are both built with this specific goal in mind, not just general reach.`);
-  parts.push(`None of this guarantees the exact number in the goal \u2014 no honest media plan can \u2014 but it's built on the fundamentals (adequate budget, sufficient flight length, strong audience fit, and a competitive-aware schedule) that give it the best realistic shot at getting there.`);
-  return parts.join(' ');
+  const bullets = [];
+  bullets.push(`<strong>"${goalsText.trim()}"</strong> is the target driving this recommendation`);
+  bullets.push(opts.meetsBudgetFloor
+    ? `Budget clears the realistic floor for a campaign built to move this goal, not just hold awareness steady`
+    : `Budget is below the realistic floor for this goal (see budget note above) — the single biggest risk to address first`);
+  bullets.push(opts.flightWeeks
+    ? `${opts.flightWeeks}-week flight is long enough to build real frequency, not just a short burst that fades`
+    : `Set flight dates above to see if there's enough time built in to realistically reach this goal`);
+  bullets.push(`${opts.topStationName || 'The recommended station'}'s audience fit and the ${(opts.competitive||'medium').toLowerCase()}-competitive schedule are both built around this specific goal`);
+  bullets.push(`No plan can guarantee the exact number — but the fundamentals here (budget, flight length, audience fit, competitive-aware schedule) give it a realistic shot`);
+  return bulletList(bullets);
 }
 
 /* Same idea as broadcastGoalConfidence, for the Digital tab \u2014 grounded in
@@ -3110,10 +3449,26 @@ function planningLengthFor(spotLengths){
   if (spotLengths.includes("30")) return "30";
   return SPOT_LENGTHS.find(l => spotLengths.includes(l)) || "30";
 }
+/* Falls back to this SAME daypart's own :30 rate whenever the requested
+   length is missing/zero there (e.g. :15 isn't sold at all in the proxy
+   markets - every daypart in Southern Illinois/Cape Girardeau/Poplar
+   Bluff carries r15:0 - or a real Hampton Roads daypart simply never had
+   a :15/:60 rate negotiated). This used to just return 0, which reads as
+   "free" and, worse, becomes a division-by-zero (Infinity spots) the
+   instant a caller divides a dollar amount by this rate - buildScheduleGrid
+   does exactly that, and an Infinity spot count fed into its cap-trim
+   while-loop (Infinity minus 1 is still Infinity) hung the whole page
+   indefinitely the moment a rep selected a :15-only or :60-only schedule
+   in a market/daypart that doesn't sell that length. Falling back to r30
+   prices the daypart normally instead - the same choice rosRateFor already
+   made for the ROS row, now applied everywhere a rate is looked up. */
 function rateForLength(dp, length, rateMult){
   if (!dp) return 0;
   const mult = rateMult || 1;
-  return (dp["r" + (length || "30")] || 0) * mult;
+  const requested = dp["r" + (length || "30")];
+  if (requested != null && requested > 0) return requested * mult;
+  const fallback = dp.r30;
+  return (fallback != null && fallback > 0) ? fallback * mult : 0;
 }
 /* station.rosR30 is a flat, :30-only convenience field used everywhere
    for quick station-level affordability checks (before any per-daypart
@@ -3320,14 +3675,14 @@ function pickStationsManual(inputs, broadcastBudget, manualStationIds){
   return {chosen: chosenStations, plan, skippedForBudget: [], manual:true, target};
 }
 
-/* Real-data "why this station" sentence for Hampton Roads — replaces the
+/* Real-data "why this station" bullets for Hampton Roads — replaces the
    ageComp/gender-approximation ageLine+genderLine pair with the actual
    Nielsen Ranker number for this exact target + daypart, plus this
    station's rank among the 5 Hampton Roads stations for that same cell.
-   Kept to one sentence, with at most one short conditional clause added
-   (ethnicity over-index, or a close-call qualitative tiebreaker) — net
-   length stays comparable to the approximation-based version below, not
-   additive with it. */
+   Returns an array of short bullet strings (main audience bullet, plus at
+   most one ethnicity bullet and one qualitative-tiebreaker bullet) for
+   stationFitStatement to render as a <ul> — kept terse so the whole
+   "why this station" block stays scannable rather than a wall of text. */
 function hampsonRoadsDaypartLabel(daypartKey){
   return ({morning:"Morning Drive", midday:"Midday", afternoon:"PM Drive", evening:"Evenings", weekend:"Weekend"})[daypartKey] || null;
 }
@@ -3373,16 +3728,17 @@ function stationFitStatementReal(station, inputs){
     : (realCumeBasePersons(station.callsign, "male", daypartKey) + realCumeBasePersons(station.callsign, "female", daypartKey)) / 2;
   const audiencePct = cumeBase > 0 ? (cumePersons / cumeBase) * 100 : 0;
 
-  let line = (persons < 5000 && cumeBase > 0)
-    ? `Nielsen shows ${genderLabel} ${inputs.targetAge} make up about ${audiencePct.toFixed(1)}% of ${station.name}'s audience ${wherePhrase} — ${rankPhrase}.`
-    : `Nielsen shows ${station.name} reaches about ${persons.toLocaleString()} ${genderLabel} ${inputs.targetAge} listeners ${wherePhrase} — ${rankPhrase}.`;
+  const bullets = [];
+  bullets.push((persons < 5000 && cumeBase > 0)
+    ? `Nielsen: ${genderLabel} ${inputs.targetAge} are ~${audiencePct.toFixed(1)}% of ${station.name}'s audience ${wherePhrase} — ${rankPhrase}`
+    : `Nielsen: ${station.name} reaches ~${persons.toLocaleString()} ${genderLabel} ${inputs.targetAge} listeners ${wherePhrase} — ${rankPhrase}`);
 
   if (inputs.ethnicityTarget && inputs.ethnicityTarget !== "none"){
     const eth = HAMPTON_ROADS_ETHNICITY[station.callsign];
     const pct = eth ? (eth[inputs.ethnicityTarget] || 0) : 0;
     if (pct >= 20){
       const label = inputs.ethnicityTarget === "black" ? "Black" : "Hispanic";
-      line += ` It also over-indexes with ${label} listeners (${pct.toFixed(1)}% of its weekly cume).`;
+      bullets.push(`Over-indexes with ${label} listeners (${pct.toFixed(1)}% of weekly cume)`);
     }
   }
 
@@ -3392,77 +3748,73 @@ function stationFitStatementReal(station, inputs){
     const qThis = HAMPTON_ROADS_QUALITATIVE_INDEX[station.callsign];
     const qOther = HAMPTON_ROADS_QUALITATIVE_INDEX[runnerUp.s.callsign];
     if (gap <= 0.10 && qThis != null && qOther != null && qThis - qOther >= 10){
-      line += ` It was a close call on raw audience size against ${runnerUp.s.name}, but ${station.name} edges ahead on household income and home value.`;
+      bullets.push(`Close call vs. ${runnerUp.s.name} on raw audience — edges ahead on household income and home value`);
     }
   }
 
-  return line;
+  return bullets;
+}
+
+/* Renders a short bullet list for the note-box sections below. Filters out
+   any falsy items so callers can push conditionally without an extra
+   .filter(Boolean) at every call site. */
+function bulletList(items){
+  const clean = (items || []).filter(Boolean);
+  if (!clean.length) return '';
+  return `<ul>${clean.map(t => `<li>${t}</li>`).join('')}</ul>`;
 }
 
 function stationFitStatement(station, inputs){
-  if (MARKETS_WITH_NIELSEN_DATA.has(inputs.market)){
-    const industryLower = (inputs.industry || "").toLowerCase();
-    const article = /^[aeiou]/.test(industryLower) ? "an" : "a";
-    const industryPart = inputs.industry && inputs.industry !== "General / Any Business"
-      ? ` for ${article} ${industryLower} client`
-      : "";
-    let profileSentence = "";
-    if (inputs.customerProfile && inputs.customerProfile !== "not specified"){
-      profileSentence = ` That overlaps well with the customer profile described here: “${inputs.customerProfile}.”`;
-    }
-    let competitorSentence = "";
-    if (inputs.competitors && inputs.competitors.trim()){
-      competitorSentence = ` Against named competitors like ${inputs.competitors}, consistent presence on ${station.name} builds the kind of local trust and top-of-mind recall that's hard to match with occasional or single-channel advertising.`;
-    }
-    return `<strong>Why this station:</strong> ${station.format} format${industryPart}. ${stationFitStatementReal(station, inputs)}${profileSentence}${competitorSentence}`;
-  }
-
-  const pct = ageTargetScore(station, inputs.targetAge);
-  const pctLabel = pct.toFixed(1);
-  let ageLine;
-  if (pct >= 40) ageLine = `${pctLabel}% of ${station.name}'s audience falls in the ${inputs.targetAge} range — a strong concentration for this target`;
-  else if (pct >= 20) ageLine = `${pctLabel}% of ${station.name}'s audience falls in the ${inputs.targetAge} range — a solid but not dominant share`;
-  else ageLine = `only ${pctLabel}% of ${station.name}'s audience falls in the ${inputs.targetAge} range — worth weighing before leaning on this station for that target`;
-
-  let genderLine;
-  if (inputs.genderSkew === "male"){
-    if (station.genderM >= 55) genderLine = `skews male (${station.genderM}% male) — a strong match for this target`;
-    else if (station.genderM >= 45) genderLine = `is fairly balanced (${station.genderF}% female / ${station.genderM}% male) — reaches a meaningful male audience without being skewed toward it`;
-    else genderLine = `actually skews female here (${station.genderF}% female) — worth weighing against a male-skewing target before leaning on this station`;
-  } else if (inputs.genderSkew === "female"){
-    if (station.genderF >= 55) genderLine = `skews female (${station.genderF}% female) — a strong match for this target`;
-    else if (station.genderF >= 45) genderLine = `is fairly balanced (${station.genderF}% female / ${station.genderM}% male) — reaches a meaningful female audience without being skewed toward it`;
-    else genderLine = `actually skews male here (${station.genderM}% male) — worth weighing against a female-skewing target before leaning on this station`;
-  } else {
-    genderLine = `is fairly balanced (${station.genderF}% female / ${station.genderM}% male) — a fit for a broad-appeal audience`;
-  }
-
   const industryLower = (inputs.industry || "").toLowerCase();
   const article = /^[aeiou]/.test(industryLower) ? "an" : "a";
   const industryPart = inputs.industry && inputs.industry !== "General / Any Business"
     ? ` for ${article} ${industryLower} client`
     : "";
+  const profileBullet = (inputs.customerProfile && inputs.customerProfile !== "not specified")
+    ? `Overlaps with the customer profile you described: “${inputs.customerProfile}”`
+    : "";
+  const competitorBullet = (inputs.competitors && inputs.competitors.trim())
+    ? `Against competitors like ${inputs.competitors}, consistent presence here builds local trust and top-of-mind recall`
+    : "";
 
-  let profileSentence = "";
-  if (inputs.customerProfile && inputs.customerProfile !== "not specified"){
-    profileSentence = ` That overlaps well with the customer profile described here: \u201c${inputs.customerProfile}.\u201d`;
+  const bullets = [`${station.format} format${industryPart}`];
+
+  if (MARKETS_WITH_NIELSEN_DATA.has(inputs.market)){
+    bullets.push(...stationFitStatementReal(station, inputs));
+  } else {
+    const pct = ageTargetScore(station, inputs.targetAge);
+    const pctLabel = pct.toFixed(1);
+    let ageBullet;
+    if (pct >= 40) ageBullet = `${pctLabel}% of listeners are ${inputs.targetAge} — strong fit for this target`;
+    else if (pct >= 20) ageBullet = `${pctLabel}% of listeners are ${inputs.targetAge} — solid but not dominant`;
+    else ageBullet = `Only ${pctLabel}% of listeners are ${inputs.targetAge} — weigh carefully before leaning on this station`;
+
+    let genderBullet;
+    if (inputs.genderSkew === "male"){
+      if (station.genderM >= 55) genderBullet = `Skews male (${station.genderM}% M) — strong match for this target`;
+      else if (station.genderM >= 45) genderBullet = `Fairly balanced (${station.genderF}% F / ${station.genderM}% M) — reaches a meaningful male audience`;
+      else genderBullet = `Actually skews female here (${station.genderF}% F) — weigh against a male-skewing target`;
+    } else if (inputs.genderSkew === "female"){
+      if (station.genderF >= 55) genderBullet = `Skews female (${station.genderF}% F) — strong match for this target`;
+      else if (station.genderF >= 45) genderBullet = `Fairly balanced (${station.genderF}% F / ${station.genderM}% M) — reaches a meaningful female audience`;
+      else genderBullet = `Actually skews male here (${station.genderM}% M) — weigh against a female-skewing target`;
+    } else {
+      genderBullet = `Fairly balanced (${station.genderF}% F / ${station.genderM}% M) — fits a broad-appeal audience`;
+    }
+
+    /* Only markets with real Nielsen diary/PPM data get to say "Per
+       Nielsen." Everywhere else, the age/gender numbers are estimates
+       built from the station's stated target demo (see the
+       STATIONS_BY_MARKET comments), so the bullets stay framed around the
+       station's own stated audience instead of implying a measured source
+       that doesn't exist for that market. */
+    const sourceTag = MARKETS_WITH_NIELSEN_DATA.has(inputs.market) ? " (Nielsen)" : " (station-stated audience)";
+    bullets.push(`Age: ${ageBullet}${sourceTag}`, `Gender: ${genderBullet}`);
   }
 
-  let competitorSentence = "";
-  if (inputs.competitors && inputs.competitors.trim()){
-    competitorSentence = ` Against named competitors like ${inputs.competitors}, consistent presence on ${station.name} builds the kind of local trust and top-of-mind recall that's hard to match with occasional or single-channel advertising.`;
-  }
+  bullets.push(profileBullet, competitorBullet);
 
-  /* Only markets with real Nielsen diary/PPM data get to say "Per Nielsen."
-     Everywhere else, the age/gender numbers are estimates built from the
-     station's stated target demo (see the STATIONS_BY_MARKET comments), so
-     the sentence is framed around the station's own stated audience instead
-     of implying a measured source that doesn't exist for that market. */
-  const sourcePhrase = MARKETS_WITH_NIELSEN_DATA.has(inputs.market)
-    ? `Per Nielsen (P12+, M-Su 6a-Mid), `
-    : `Based on this station's stated target audience, `;
-
-  return `<strong>Why this station:</strong> ${station.format} format${industryPart}. ${sourcePhrase}${ageLine}, and the audience ${genderLine}.${profileSentence}${competitorSentence}`;
+  return `<strong>Why this station:</strong>${bulletList(bullets)}`;
 }
 
 /* Markets where the age/gender/ageComp numbers in STATIONS_BY_MARKET come
@@ -3675,22 +4027,49 @@ function weekdayPoolDays(days){
   return days.filter(d => !WEEKEND_DAYS_SET.has(d));
 }
 
-function distributeAcrossDays(totalSpots, days, weights){
+/* Which array index a category's remainder spots should start landing on.
+   Sean reported: "Hampton Roads, Broad Rotation, Weekday + Light weekend
+   ... still front loading most of the schedule in Mon-Wed." Root cause:
+   every station's daypart .days arrays are always ordered Mon..Fri, and
+   distributeAcrossDays below always gave leftover/remainder spots to the
+   FIRST N days of whatever array it was handed - so for any dayPref other
+   than early_week/later_week (which have their own real per-day weights),
+   the remainder landed on Monday, then Tuesday, then Wednesday, every
+   time. "Broad Rotation" made it obvious because it splits the budget
+   across 5 separate weekday categories (morning/midday/afternoon/evening/
+   rotator) that each independently rounded the same direction, stacking
+   the bias instead of averaging it out. Rotating which day each category
+   starts its remainder on spreads that unavoidable rounding remainder
+   back out across the whole week instead of parking it on the same 2-3
+   days every single time. */
+const CATEGORY_DAY_OFFSET = { morning:0, midday:1, afternoon:2, evening:3, rotator:4, ros:2, weekend:0 };
+function dayOffsetFor(catKey, dayCount){
+  const base = (CATEGORY_DAY_OFFSET[catKey] != null) ? CATEGORY_DAY_OFFSET[catKey] : 0;
+  return dayCount > 0 ? (base % dayCount) : 0;
+}
+
+function distributeAcrossDays(totalSpots, days, weights, offset){
+  const off = days.length > 0 ? (((offset || 0) % days.length) + days.length) % days.length : 0;
   if (!weights){
     const base = Math.floor(totalSpots / days.length);
     const rem = totalSpots - base * days.length;
     const dayCounts = {};
-    days.forEach((d, i) => { dayCounts[d] = base + (i < rem ? 1 : 0); });
+    days.forEach(d => { dayCounts[d] = base; });
+    for (let k = 0; k < rem; k++){ dayCounts[days[(off + k) % days.length]] += 1; }
     return dayCounts;
   }
   // Weighted allocation with largest-remainder rounding so totals stay exact.
+  // Ties (equal fractional remainders - the common case for a flat/even
+  // weighting) are broken by the same rotating offset as the unweighted
+  // branch above, rather than always favoring the lowest array index.
   const w = days.map(d => (weights[d] != null ? weights[d] : 1));
   const totalWeight = w.reduce((a,b) => a+b, 0) || 1;
   const raw = w.map(x => totalSpots * x / totalWeight);
   const floors = raw.map(Math.floor);
   let allocated = floors.reduce((a,b) => a+b, 0);
   let remainder = totalSpots - allocated;
-  const fracOrder = raw.map((r,i) => ({i, frac: r - floors[i]})).sort((a,b) => b.frac - a.frac);
+  const rotIdx = (i) => ((i - off) % days.length + days.length) % days.length;
+  const fracOrder = raw.map((r,i) => ({i, frac: r - floors[i]})).sort((a,b) => (b.frac - a.frac) || (rotIdx(a.i) - rotIdx(b.i)));
   for (let k = 0; k < remainder && k < fracOrder.length; k++){ floors[fracOrder[k].i] += 1; }
   const dayCounts = {};
   days.forEach((d,i) => { dayCounts[d] = floors[i]; });
@@ -3811,7 +4190,14 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
     const rate30 = rateForLength(dp, spotLength, rateMult);
     const dollars = categoryDollars[catKey] || 0;
     const useDays = daysByCategory[catKey];
-    if (useDays.length > 0){
+    /* rate30 > 0 guard: rateForLength already falls back to this daypart's
+       r30 when the requested length isn't sold there, but this defends the
+       cap-trim while-loop below against a rate of exactly 0 by any other
+       path too - dividing dollars by 0 produces Infinity spots, and
+       Infinity minus 1 is still Infinity, so that loop would never
+       terminate. A genuinely rateless daypart just contributes its dollars
+       to leftover instead, same as the "no days available" branch below. */
+    if (useDays.length > 0 && rate30 > 0){
       /* Rounding remainder (dollars - actualDollars) is added to leftover
          exactly once here, whether or not it clears a whole spot (spots
          can be 0, in which case actualDollars is 0 and the FULL dollars
@@ -3822,7 +4208,7 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
       const actualDollars = spots * rate30;
       leftover += (dollars - actualDollars);
       if (spots > 0){
-        rows.push({key: catKey, label: dp.label, talent: dp.talent, r15: dp.r15 * rateMult, r30: dp.r30 * rateMult, r60: dp.r60 * rateMult, length: spotLength || "30", rate: rate30, days: useDays, skew: skewByCategory[catKey], spots, dollars: actualDollars, dayCounts: distributeAcrossDays(spots, useDays, skewByCategory[catKey])});
+        rows.push({key: catKey, label: dp.label, talent: dp.talent, r15: dp.r15 * rateMult, r30: dp.r30 * rateMult, r60: dp.r60 * rateMult, length: spotLength || "30", rate: rate30, days: useDays, skew: skewByCategory[catKey], spots, dollars: actualDollars, dayCounts: distributeAcrossDays(spots, useDays, skewByCategory[catKey], dayOffsetFor(catKey, useDays.length))});
       }
     } else {
       leftover += dollars;
@@ -3841,7 +4227,10 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
     : verticalDay ? rosDp.days.filter(d => verticalDay.includes(d))
     : rosDp.days;
   const rosDays = effectiveDaysForPref(rosDaysBase, dayPref);
-  const extraRosSpots = Math.floor(leftover / rosRate30);
+  // Same rate30 > 0 guard as every category above - a rateless ROS row
+  // (rosRate30 === 0) just leaves this leftover-sweep skipped rather than
+  // dividing by zero into an Infinity spot count.
+  const extraRosSpots = rosRate30 > 0 ? Math.floor(leftover / rosRate30) : 0;
   if (extraRosSpots > 0 && rosDays.length > 0){
     // Same early_week/later_week emphasis as every other category applies
     // here too - these leftover-budget spots still land on real days, and
@@ -3864,7 +4253,7 @@ function buildScheduleGrid(station, weeklyDollars, timePref, dayPref, maxSpots, 
     if (!cheapest) break;
     cheapest.spots -= 1; totalSpots -= 1; unspentFromCap += cheapest.rate;
   }
-  rows.forEach(r => { r.dollars = r.spots * r.rate; r.dayCounts = distributeAcrossDays(r.spots, r.days, r.skew); });
+  rows.forEach(r => { r.dollars = r.spots * r.rate; r.dayCounts = distributeAcrossDays(r.spots, r.days, r.skew, dayOffsetFor(r.key, r.days.length)); });
   const finalRows = rows.filter(r => r.spots > 0);
   const totalDollars = finalRows.reduce((s,r) => s + r.dollars, 0);
   return {rows: finalRows, totalSpots, totalDollars, unspentFromCap, capSpots};
@@ -3939,7 +4328,7 @@ function buildWidenedGrid(station, weeklyDollars, timePref, dayPref, maxSpots, q
     rows.push({
       key: cat, label: dp.label + ' (' + chosenTier.label + ')', talent: dp.talent,
       r15: dp.r15 * rateMult, r30: dp.r30 * rateMult, r60: dp.r60 * rateMult, length: spotLength || "30", rate: widenedRate, days: catDays, skew: catSkew,
-      spots, dollars: spots * widenedRate, dayCounts: distributeAcrossDays(spots, catDays, catSkew)
+      spots, dollars: spots * widenedRate, dayCounts: distributeAcrossDays(spots, catDays, catSkew, dayOffsetFor(cat, catDays.length))
     });
   }
   const wdp = sched.weekend;
@@ -3949,7 +4338,7 @@ function buildWidenedGrid(station, weeklyDollars, timePref, dayPref, maxSpots, q
   if (weekendSpots > 0 && weekendDays.length > 0){
     rows.push({
       key:"weekend", label:wdp.label, talent:wdp.talent, r15:wdp.r15*rateMult, r30:wdp.r30*rateMult, r60:wdp.r60*rateMult, length: spotLength || "30", rate: weekendRate,
-      days:weekendDays, skew:null, spots:weekendSpots, dollars:weekendSpots*weekendRate, dayCounts:distributeAcrossDays(weekendSpots, weekendDays, null)
+      days:weekendDays, skew:null, spots:weekendSpots, dollars:weekendSpots*weekendRate, dayCounts:distributeAcrossDays(weekendSpots, weekendDays, null, dayOffsetFor("weekend", weekendDays.length))
     });
   }
   const totalSpots = rows.reduce((s,r) => s + r.spots, 0);
@@ -4018,13 +4407,16 @@ function buildCondensedGrid(station, weeklyDollars, dayparts, days, quuMultiplie
       return;
     }
     const rate30 = rateForLength(dp, spotLength, rateMult);
-    const spots = Math.floor(dollarsPerCat / rate30);
+    // rate30 > 0 guard - see buildScheduleGrid's identical comment: without
+    // it, a rateless daypart divides by zero into Infinity spots / NaN
+    // dollars instead of just leaving that category's share unspent.
+    const spots = rate30 > 0 ? Math.floor(dollarsPerCat / rate30) : 0;
     const actualDollars = spots * rate30;
     unspent += (dollarsPerCat - actualDollars);
     if (spots > 0){
       rows.push({
         key: cat, label: dp.label, talent: dp.talent, r15: dp.r15 * rateMult, r30: dp.r30 * rateMult, r60: dp.r60 * rateMult, length: spotLength || "30", rate: rate30,
-        days: useDays, skew: null, spots, dollars: actualDollars, dayCounts: distributeAcrossDays(spots, useDays, null)
+        days: useDays, skew: null, spots, dollars: actualDollars, dayCounts: distributeAcrossDays(spots, useDays, null, dayOffsetFor(cat, useDays.length))
       });
     } else {
       notes.push(`This budget can't clear even 1 spot/week on ${dp.label} at this station on the day(s) you picked.`);
@@ -4229,7 +4621,16 @@ function computeSingleStationSchedule(station, inputs, weeklyBudget, quuMultipli
   // condensed schedule is deliberately below the usual floor, not a
   // shortfall worth flagging as "insufficient".
   const isCondensed = grid && grid.concentrationModeUsed === "condensed";
-  return {station, spotsPerWeek: realizedSpots, weeklyDollars, grid, insufficient: !isCondensed && realizedSpots < SCHEDULE_MIN_VIABLE_SPOTS};
+  /* weeklyDollars above is the pre-grid ROS-blended-rate ESTIMATE used only
+     to size the schedule request - the grid itself then prices actual
+     per-daypart rates and rounds to whole spots (and, for a heavy budget,
+     trims down to the competitive-tier cap), so its real totalDollars can
+     land a bit different from that estimate. realizedWeeklyDollars is the
+     number that must be shown anywhere alongside the rendered schedule
+     grid, so the two always reconcile - see the identical comment on
+     renderStationPlan. */
+  const realizedWeeklyDollars = grid ? grid.totalDollars : weeklyDollars;
+  return {station, spotsPerWeek: realizedSpots, weeklyDollars, realizedWeeklyDollars, grid, insufficient: !isCondensed && realizedSpots < SCHEDULE_MIN_VIABLE_SPOTS};
 }
 
 /* Renders the "compare other stations in this market" section: every
@@ -4253,10 +4654,18 @@ function renderStationComparisonSection(market, inputs, weeklyBudget, quuMultipl
     const result = computeSingleStationSchedule(station, inputs, weeklyBudget, quuMultiplier, flightWeeks);
     const uid = marketSlug + '_' + station.id;
     window._stationPreviewData[uid] = { station, result };
+    // Same data shape the recommended station(s) already stash for
+    // renderManualScheduleToggle/renderManualScheduleTool (see below) -
+    // lets a rep customize and add ANY station's previewed schedule
+    // straight into the plan without ever switching Station selection to
+    // Manual, per Sean's request.
+    if (!result.insufficient && result.grid){
+      window._scheduleToolData[uid] = { station, market, grid: result.grid, spotLengths: inputs.spotLengths };
+    }
     const spotsLabel = result.insufficient
       ? `<span style="color:#A32D2D; font-weight:600;">Not sufficient budget for buying this station at a recommended level</span>`
       : `${result.spotsPerWeek}/wk`;
-    html += `<tr><td>${station.name}</td><td>${station.format}</td><td>${spotsLabel}</td><td>$${Math.round(result.weeklyDollars).toLocaleString()}</td><td><button type="button" class="use-btn" style="margin-left:0;" onclick="toggleStationPreview('${uid}')">${result.insufficient ? 'Details' : 'View schedule'}</button></td></tr>`;
+    html += `<tr><td>${station.name}</td><td>${station.format}</td><td>${spotsLabel}</td><td>$${Math.round(result.realizedWeeklyDollars).toLocaleString()}</td><td><button type="button" class="use-btn" style="margin-left:0;" onclick="toggleStationPreview('${uid}')">${result.insufficient ? 'Details' : 'View schedule'}</button></td></tr>`;
   });
   html += '</table>';
   others.forEach(station => {
@@ -4281,6 +4690,12 @@ function toggleStationPreview(uid){
       if (result.grid && result.grid.concentrationModeUsed){
         html += `<div class="data-note">${CONCENTRATION_MODE_EXPLANATIONS[result.grid.concentrationModeUsed] || result.grid.concentrationModeUsed}.</div>`;
       }
+      // Lets a rep go straight from "what would this look like" to
+      // "customize it and add it to the plan" - as an ADDITIONAL station
+      // alongside whatever's already recommended, not a replacement -
+      // without leaving this comparison table or touching Station
+      // selection mode at all.
+      html += renderManualScheduleToggle(uid, station.name);
       container.innerHTML = html;
     }
   } else {
@@ -4324,6 +4739,16 @@ function toggleManualScheduleTool(uid){
     const data = window._scheduleToolData[uid];
     if (!data) return;
     container.innerHTML = renderManualScheduleTool(data.station, data.market, data.grid, uid, data.spotLengths);
+    // The table's displayed "Total weekly" is computed locally at render
+    // time, but window['_manualScheduleTotal_' + uid] (what "+ Add to
+    // Plan" actually reads) is only ever set by recomputeManualSchedule,
+    // which otherwise only runs on a field's oninput/onchange. Without
+    // this, a rep who opens "Customize" and immediately clicks "+ Add to
+    // Plan" without touching anything gets a false "enter at least one
+    // spot" alert even though the table is clearly pre-filled with a real
+    // schedule - run it once right after render so the pre-filled total is
+    // usable immediately, not only after the rep edits a row.
+    recomputeManualSchedule(uid);
   } else {
     container.innerHTML = '';
   }
@@ -4943,7 +5368,22 @@ function renderStationPlan(stationPlan, competitive, grids, market, flightStart,
   // reduced weeks/month cadence is in play (see bWeeksPerMonth).
   const activeFlightWeeks = flightWeeks ? Math.round(flightWeeks * (wpm / 4.33) * 10) / 10 : 0;
   const flightRangeLabel = flightWeeks ? formatFlightRange(flightStart, flightEnd) : '';
-  const mixItems = stationPlan.plan.map(p => ({label: p.station.name, value: p.weeklyDollars}));
+  /* p.weeklyDollars is the pre-grid ROS-blended-rate ESTIMATE that only
+     decides how many spots this station's slice of the budget can buy -
+     the grid built from it then prices real per-daypart rates, rounds to
+     whole spots, and (for a heavy budget) trims down to the competitive
+     tier's spot cap, so its actual totalDollars can land a bit different
+     from that estimate. Every number shown to a rep or client alongside
+     the rendered schedule grid - this mix chart, the summary table below,
+     and the Official Plan/Proposal $/mo and campaign-total figures - has
+     to be built from that SAME realized total, or the top-line number and
+     the schedule directly underneath it visibly stop reconciling (the
+     exact mismatch Sean flagged from the field). */
+  const realizedWeeklyDollarsByIndex = stationPlan.plan.map((p, i) => {
+    const g = grids && grids[i];
+    return g ? g.totalDollars : p.weeklyDollars;
+  });
+  const mixItems = stationPlan.plan.map((p, i) => ({label: p.station.name, value: realizedWeeklyDollarsByIndex[i]}));
   const oa = stationPlan.overnightAddon;
   if (oa){ mixItems.push({label: oa.station.name + ' (overnight)', value: oa.weeklyDollars}); }
   let html = renderMixChart("Weekly broadcast mix", mixItems);
@@ -4953,6 +5393,7 @@ function renderStationPlan(stationPlan, competitive, grids, market, flightStart,
   let anyInsufficient = false;
   stationPlan.plan.forEach((p, i) => {
     const grid = grids && grids[i];
+    const realizedWeeklyDollars = realizedWeeklyDollarsByIndex[i];
     // The TRUE below-floor test is the realized grid after any concentration
     // attempt - p.belowMinimum from pickStationsAndSchedule is only a
     // provisional, ROS-blended-rate estimate.
@@ -4977,7 +5418,7 @@ function renderStationPlan(stationPlan, competitive, grids, market, flightStart,
       section: 'Broadcast',
       name: p.station.name + ' (' + p.station.format + ')',
       detail: realizedSpots + ' spots/wk' + (grid && grid.concentrationModeUsed ? ' (concentrated)' : ' across all dayparts') + (wpm < 4 ? ', ' + wpm + ' wk/mo' : ''),
-      monthlyCost: p.weeklyDollars * wpm,
+      monthlyCost: realizedWeeklyDollars * wpm,
       // See addManualScheduleToPlan's identical comment — lets the Client
       // Proposal builder resolve this item back to a real station object.
       stationId: p.station.id,
@@ -4986,11 +5427,11 @@ function renderStationPlan(stationPlan, competitive, grids, market, flightStart,
       logo: p.station.logo || ''
     };
     if (flightWeeks){
-      planItem.campaignTotal = p.weeklyDollars * activeFlightWeeks;
+      planItem.campaignTotal = realizedWeeklyDollars * activeFlightWeeks;
       planItem.campaignLengthLabel = activeFlightWeeks + ' active week' + (activeFlightWeeks===1?'':'s') + (wpm < 4 ? ' (' + flightWeeks + ' calendar)' : '');
       planItem.flightRangeLabel = flightRangeLabel;
     }
-    html += `<tr><td>${p.station.name}</td><td>${p.station.format}</td><td>${realizedSpots}${flag}</td><td>$${Math.round(p.weeklyDollars).toLocaleString()}</td><td>${planToggleButtonHtml(planItem)}</td></tr>`;
+    html += `<tr><td>${p.station.name}</td><td>${p.station.format}</td><td>${realizedSpots}${flag}</td><td>$${Math.round(realizedWeeklyDollars).toLocaleString()}</td><td>${planToggleButtonHtml(planItem)}</td></tr>`;
   });
   if (oa){
     const overnightPlanItem = {
@@ -5016,10 +5457,27 @@ function renderStationPlan(stationPlan, competitive, grids, market, flightStart,
     if (alternativeStation){
       const alt = alternativeStation;
       const altModeText = alt.concentrationModeUsed ? (CONCENTRATION_MODE_EXPLANATIONS[alt.concentrationModeUsed] || alt.concentrationModeUsed) : 'a normal weekly spread across dayparts';
+      // alt.weeklyDollars is the same kind of pre-grid ROS-rate estimate as
+      // everywhere else in this function - alt.grid.totalDollars is what
+      // this station's schedule actually reconciles to.
+      const altRealizedWeeklyDollars = alt.grid ? alt.grid.totalDollars : alt.weeklyDollars;
+      // Per Sean: this shouldn't only be a straight swap - a rep may want
+      // to keep the (best-fit but too-thin) primary station AND layer this
+      // lower-rate alternative on top as a genuine second station, using
+      // the same customize-then-add tool every other station preview uses,
+      // rather than only being able to replace the primary recommendation.
+      const altUid = 'alt_' + marketSlug + '_' + alt.station.id;
+      if (alt.grid){
+        window._scheduleToolData[altUid] = { station: alt.station, market, grid: alt.grid, spotLengths: [planningLength || '30'] };
+      }
       html += `<div class="note-box" style="margin-top:8px;">`
-        + `<strong>Option: switch to ${alt.station.name}</strong> (${alt.station.format}) — a lower-rate station that this same budget clears <strong>${alt.spotsPerWeek} spots/week</strong> on at $${Math.round(alt.weeklyDollars).toLocaleString()}/week (${altModeText}). `
+        + `<strong>Option: switch to ${alt.station.name}</strong> (${alt.station.format}) — a lower-rate station that this same budget clears <strong>${alt.spotsPerWeek} spots/week</strong> on at $${Math.round(altRealizedWeeklyDollars).toLocaleString()}/week (${altModeText}). `
         + `This is a real fit-vs-frequency tradeoff worth discussing with the client, not an automatic swap — ${stationPlan.plan[0].station.name} still best matches the target audience, ${alt.station.name} is what actually delivers effective frequency on this budget.`
-        + `<div style="margin-top:6px;"><button type="button" class="use-btn" style="margin-left:0;" onclick="useAlternativeStation('${alt.station.id}')">Switch to ${alt.station.name} instead</button></div>`
+        + `<div style="margin-top:6px;">`
+        + `<button type="button" class="use-btn" style="margin-left:0;" onclick="useAlternativeStation('${alt.station.id}')">Switch to ${alt.station.name} instead</button>`
+        + `<button type="button" class="use-btn" onclick="toggleManualScheduleTool('${altUid}')">Add ${alt.station.name} in addition</button>`
+        + `</div>`
+        + `<div id="manToolContainer_${altUid}" style="margin-top:10px;"></div>`
         + `</div>`;
     }
   }
@@ -5141,9 +5599,79 @@ function updateTalentBlurb(stationIdx){
   blurb.innerHTML = `<div class="talent-blurb"><strong>${o.talent}</strong> — ${o.show}, ${o.label}.<br>${rateText}<div style="margin-top:8px;">${planToggleButtonHtml(planItem)}</div></div>`;
 }
 
+/* Each sample promotional idea card gets a "Customize idea" button that
+   reveals a small inline form (idea name, pre-filled from the catalog but
+   editable so a rep can tailor it to this specific client, plus a weekly
+   price that also accepts "Bonus") and its own "+ Add to Plan" action \u2014
+   the same two-step pattern ("fill in the details" then "commit it into
+   the plan") already used by the manual sponsorship add-on just above.
+   ideaCardCounter keeps every card's element ids unique across a whole
+   render pass; ideaPlanCounter keeps every ADDED plan item's id unique
+   even if the same idea gets customized and added more than once. */
+let ideaCardCounter = 0;
+let ideaPlanCounter = 0;
+
 function renderIdeas(ideas){
   if (!ideas.length) return '<div class="note-box">No matching ideas found for this industry and timing.</div>';
-  return ideas.map(i => `<div class="idea-card"><div class="p-name">${i.title}</div><div>${i.desc}</div><span class="p-occ">${i.month} \u00b7 ${i.occasion}</span></div>`).join("");
+  return ideas.map(i => {
+    ideaCardCounter++;
+    const uid = 'idea_' + ideaCardCounter;
+    return `<div class="idea-card">
+      <div class="p-name">${i.title}</div>
+      <div>${i.desc}</div>
+      <span class="p-occ">${i.month} \u00b7 ${i.occasion}</span>
+      <div style="margin-top:10px;"><button type="button" class="use-btn" style="margin-left:0;" onclick="toggleIdeaCustomize('${uid}')">Customize idea</button></div>
+      <div id="${uid}_form" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+        <div class="field" style="margin-bottom:8px;"><label>Idea name</label><input type="text" id="${uid}_name" value="${escAttr(i.title)}"></div>
+        <div class="field" style="margin-bottom:8px;"><label>Weekly price ($) \u2014 or type "Bonus"</label><input type="text" id="${uid}_price" placeholder="e.g. 150 or Bonus" oninput="formatPriceOrBonusInput(this)"></div>
+        <button type="button" class="use-btn" style="margin-left:0;" onclick="addIdeaToPlan('${uid}')">+ Add to Plan</button>
+        <div id="${uid}_added" style="margin-top:8px;"></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toggleIdeaCustomize(uid){
+  const form = document.getElementById(uid + '_form');
+  if (!form) return;
+  const opening = form.style.display === 'none';
+  form.style.display = opening ? 'block' : 'none';
+  if (opening){
+    const nameField = document.getElementById(uid + '_name');
+    if (nameField){ nameField.focus(); nameField.select(); }
+  }
+}
+
+function addIdeaToPlan(uid){
+  const nameInput = document.getElementById(uid + '_name');
+  const priceInput = document.getElementById(uid + '_price');
+  const target = document.getElementById(uid + '_added');
+  if (!nameInput || !priceInput || !target) return;
+  const name = nameInput.value.trim();
+  const parsed = parsePriceOrBonus(priceInput.value);
+  if (!name){ alert('Enter a name for this idea.'); return; }
+  if (!parsed.isBonus && parsed.amount <= 0){ alert('Enter a weekly price for this idea, or type "Bonus" if there\'s no charge.'); return; }
+
+  ideaPlanCounter++;
+  const market = document.getElementById('sharedMarket').value;
+  const flightStart = document.getElementById('bFlightStart').value;
+  const flightEnd = document.getElementById('bFlightEnd').value;
+  const flightWeeks = weeksBetweenDates(flightStart, flightEnd);
+
+  const planItem = {
+    id: 'broadcast_idea_' + slugifyForId(market) + '_' + ideaPlanCounter + '_' + Date.now(),
+    section: 'Broadcast',
+    name: name,
+    detail: priceOrBonusLabel(parsed) + ' (from sample promotional idea)',
+    monthlyCost: parsed.isBonus ? 0 : parsed.amount * 4.33
+  };
+  if (!parsed.isBonus && flightWeeks){
+    planItem.campaignTotal = parsed.amount * flightWeeks;
+    planItem.campaignLengthLabel = flightWeeks + ' week' + (flightWeeks===1?'':'s');
+    planItem.flightRangeLabel = formatFlightRange(flightStart, flightEnd);
+  }
+
+  target.innerHTML = planToggleButtonHtml(planItem);
 }
 
 /* ============ BROADCAST TAB ============ */
@@ -5483,19 +6011,19 @@ async function generateBroadcast(){
     ${stationComparisonHtml}
     ${challengeSolutions}
     <div class="output-section"><h3>On-air talent endorsement</h3>${renderTalentPicker(stationPlan) || '<div class="note-box">No talent roster loaded for this market yet.</div>'}</div>
-    <div class="output-section"><h3>12-month schedule</h3>${renderTimeline(levels, labels)}<div class="note-box" style="margin-top:12px;">${scheduleReasoning(inputs.seasonality, inputs.peakMonths, labels, inputs.competitive, topStationName, totalWeekly)}</div></div>
+    <div class="output-section"><h3>12-month strategy calendar</h3>${renderTimeline(levels, labels)}<div class="note-box" style="margin-top:12px;">${scheduleReasoning(inputs.seasonality, inputs.peakMonths, labels, inputs.competitive, topStationName, totalWeekly)}</div></div>
     <div class="output-section"><h3>Add a sponsorship or feature idea</h3>
-      <div class="data-note" style="margin-bottom:10px;">For a rep's own sponsorship idea, live remote, or on-air feature not already covered above \u2014 add a name and a weekly price and it goes straight into the Official Plan like anything else. Add as many as needed.</div>
+      <div class="data-note" style="margin-bottom:10px;">For a rep's own sponsorship idea, live remote, or on-air feature not already covered above \u2014 add a name and a weekly price and it goes straight into the Official Plan like anything else. Type "Bonus" for the price if it's a no-charge added-value item. Add as many as needed.</div>
       <div class="row2">
         <div class="field" style="margin-bottom:8px;"><label>Sponsorship / feature name</label><input type="text" id="manualSponsorshipName" placeholder="e.g. Weather sponsorship on 97.3 The Eagle"></div>
-        <div class="field" style="margin-bottom:8px;"><label>Weekly price ($)</label><input type="text" inputmode="numeric" id="manualSponsorshipPrice" placeholder="e.g. 150" oninput="formatNumberInput(this)"></div>
+        <div class="field" style="margin-bottom:8px;"><label>Weekly price ($) \u2014 or type "Bonus"</label><input type="text" id="manualSponsorshipPrice" placeholder="e.g. 150 or Bonus" oninput="formatPriceOrBonusInput(this)"></div>
       </div>
       <button type="button" class="use-btn" style="margin-left:0;" onclick="addManualSponsorship()">+ Add Sponsorship</button>
       <div id="manualSponsorshipsContainer" style="margin-top:8px;"></div>
     </div>
     ${goalConfidence ? `<div class="output-section"><h3>Confidence in hitting this goal</h3><div class="note-box">${goalConfidence}</div></div>` : ""}
     <div class="output-section"><h3>Turning their current marketing into a reason to add Max Media</h3>${renderCurrentMarketingMessages(currentMarketingMatches)}</div>
-    <div class="output-section"><h3>Recommended features & promotions</h3>${renderIdeas(matchedIdeas)}</div>
+    <div class="output-section"><h3>Sample promotional idea starters</h3>${renderIdeas(matchedIdeas)}</div>
     ${staffNudge ? `<div class="output-section"><h3>Recruitment nudge</h3><div class="note-box">${staffNudge}</div></div>` : ""}
     <div class="output-section" id="bAiSection"><h3>Creative & campaign direction</h3><div class="empty-state" style="padding:24px;"><span class="spinner" style="border-color:var(--navy); border-top-color:transparent;"></span>Writing creative direction...</div></div>
   `;
