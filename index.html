@@ -142,7 +142,20 @@
      only during print/PDF export per the print-only rule above), so no
      separate screen-preview styling is needed. */
   @media print{
-    .proposal-page{ page-break-after:always; box-sizing:border-box; min-height:11in; }
+    /* size:letter/margin:0 gets us true edge-to-edge on browsers that honor
+       @page (many do when the print dialog's margin option is left on
+       Default). min-height uses 100vh rather than a hardcoded "11in"
+       deliberately: 100vh resolves against the actual printable content box
+       Chromium computes for the page (paper size minus whatever margin the
+       print dialog ends up using), so this never asks a page to be taller
+       than the space actually available on one sheet. A hardcoded 11in
+       assumes zero margins; when a rep's own Print dialog applies its usual
+       non-zero default margin instead, one 11in-tall page no longer fits on
+       one physical sheet and the overflow spills onto a near-empty second
+       sheet for every single slide - that's the "blank pages in between
+       content" bug, reproduced and confirmed against this exact setup. */
+    @page{ size:letter; margin:0; }
+    .proposal-page{ page-break-after:always; box-sizing:border-box; min-height:100vh; }
     .proposal-page:last-child{ page-break-after:auto; }
   }
   .proposal-page{ padding:36px 40px; font-family:'Source Sans 3', sans-serif; color:var(--text); font-size:13.5px; line-height:1.6; }
@@ -2612,7 +2625,7 @@ function proposalStationPositioningPage(clientProfile, sections){
    surfaces the same challenge-matched messaging the Broadcast tab already
    writes for that exact challenge (grounded in the real stations actually
    in the cart), rather than duplicating that logic from scratch. */
-function proposalCompetitiveIndustryPage(clientProfile, sections){
+function proposalCompetitiveIndustryPage(clientProfile, sections, creative){
   const hasContent = clientProfile.industry || clientProfile.competitors;
   if (!hasContent) return '';
   let html = '<div class="proposal-page">';
@@ -2620,6 +2633,23 @@ function proposalCompetitiveIndustryPage(clientProfile, sections){
   html += proposalFieldBlock('Industry', clientProfile.industry || 'Not specified');
   html += proposalFieldBlock('Competitive intensity', clientProfile.competitive);
   html += proposalFieldBlock('Named competitors', clientProfile.competitors);
+
+  // AI-generated general read on each named competitor - explicitly NOT
+  // sourced from live reviews/ratings (Sean opted for the general-knowledge
+  // version rather than a real Google Places API integration), so this is
+  // labeled plainly as a starting point for the rep to verify, not a
+  // factual claim about the real business.
+  const reads = (creative && Array.isArray(creative.competitor_reads)) ? creative.competitor_reads.filter(r => r && r.name) : [];
+  if (reads.length){
+    html += '<div class="prop-field-label" style="margin-top:18px;">Competitor read (AI-generated, general knowledge)</div>';
+    reads.forEach(r => {
+      html += '<div class="prop-card"><div class="prop-card-title">' + r.name + '</div>'
+        + (r.strengths ? ('<div style="margin-top:2px;"><strong>Strengths:</strong> ' + r.strengths + '</div>') : '')
+        + (r.weaknesses ? ('<div style="margin-top:2px;"><strong>Weaknesses:</strong> ' + r.weaknesses + '</div>') : '')
+        + '</div>';
+    });
+    html += '<div style="font-size:10.5px; color:var(--text-muted); font-style:italic; margin-top:2px;">Generated from general industry knowledge, not live reviews or verified facts about these specific businesses — confirm before presenting to the client.</div>';
+  }
 
   const matched = matchChallenges(clientProfile.challenges).find(c => c.id === 'competition');
   if (matched && sections.broadcast.length){
@@ -2756,7 +2786,7 @@ function buildProposalHtml(clientProfile, repInfo, sections, creative, promotion
   html += proposalCoverPage(clientProfile, sections);                                          // 1. Title page
   html += proposalGoalsAudiencePage(clientProfile, sections);                                   // 2. Campaign goals & audience recap
   html += proposalStationPositioningPage(clientProfile, sections);                              // 3. Station positioning
-  html += proposalCompetitiveIndustryPage(clientProfile, sections);                             // 4. Competitive & industry breakdown
+  html += proposalCompetitiveIndustryPage(clientProfile, sections, creative);                    // 4. Competitive & industry breakdown
   html += proposalQuuPage(quuAdded, sections);                                                  // 5. Quu description (if added)
   html += proposalCurrentAdvertisingPage(clientProfile);                                        // 6. Current advertising + suggestions/notes
   html += proposalCreativeStrategyPage(creative, promotions, clientProfile.peakMonths);         // 7. Creative strategy + promotions selected
@@ -2782,7 +2812,8 @@ async function callClaudeProposal(clientProfile, sections){
 
   const prompt = "You are a marketing strategist at Max Media, a company that owns radio stations, a full-service digital marketing agency, live event production, podcast studios, and social media marketing.\n\n"
     + "A sales rep is putting together a FORMAL CLIENT PROPOSAL spanning everything Max Media is recommending for this client at once (potentially broadcast radio, digital marketing, and staff recruitment advertising together). Write ONE unified creative strategy tying every recommended channel together into a single coherent story, rather than treating each channel separately. Respond with ONLY a raw JSON object (no markdown fences, no preamble) matching exactly this shape:\n\n"
-    + '{"campaign_name": "a short, presentable name for this overall campaign", "concept": "2-3 sentence campaign concept", "creative_angle": "2-3 sentence unified creative angle spanning every channel recommended below", "messaging_pillars": ["pillar1","pillar2","pillar3"], "narrative_summary": "4-6 sentence summary a rep can read aloud to the client, tying broadcast/digital/recruitment together into one story and explicitly connecting it back to the goals and challenges below"}\n\n'
+    + '{"campaign_name": "a short, presentable name for this overall campaign", "concept": "2-3 sentence campaign concept", "creative_angle": "2-3 sentence unified creative angle spanning every channel recommended below", "messaging_pillars": ["pillar1","pillar2","pillar3"], "narrative_summary": "4-6 sentence summary a rep can read aloud to the client, tying broadcast/digital/recruitment together into one story and explicitly connecting it back to the goals and challenges below", "competitor_reads": [{"name": "competitor name exactly as given below", "strengths": "1 sentence on this TYPE of competitor\'s likely strengths, general/typical for this business category - do not invent specific real facts, review scores, or incidents you cannot verify", "weaknesses": "1 sentence on this TYPE of competitor\'s likely weaknesses or vulnerabilities, same ground rule"}]}\n\n'
+    + "For competitor_reads: include one entry per named competitor listed below, in the order given. Base each on general, typical patterns for that kind of business in this industry - NOT on live reviews, ratings, or specific facts about that real business you cannot verify. If no competitors are named below, return an empty array for competitor_reads.\n\n"
     + "CLIENT NOTES:\n"
     + "Business: " + clientProfile.clientName + ", industry: " + clientProfile.industry + "\n"
     + "Customer profile: " + (clientProfile.customerProfile || "not specified") + "\n"
